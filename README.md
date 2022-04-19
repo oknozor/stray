@@ -1,9 +1,8 @@
-## Eww-Tray
+# Eww-Tray
 [StatusNotifierWatcher](https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierWatcher/)
 implementation for [eww](https://github.com/elkowar/eww)
----
 
-**⚠️ Eww-tray is a work in progress, expect bugs until first release.⚠️**
+### **⚠️ Eww-tray is a work in progress, expect bugs until first release.⚠️**
 
 ## Installation
 
@@ -12,14 +11,14 @@ implementation for [eww](https://github.com/elkowar/eww)
 ```shell
 git clone https://github.com/oknozor/eww-tray
 cd eww-tray
-cargo isntall --path .
+cargo install --path .
 ```
 
 ## Configuration
 
 `eww-tray` will look on start for a config file under `$XDG_CONFIG_DIR/eww-tray.yuck`. 
 
-The config consist of a single [tera](https://tera.netlify.app/) template file which is supposed to be rendered as an 
+The config consists of a single [tera](https://tera.netlify.app/) template file which is supposed to be rendered as an 
 [eww literal widget](https://elkowar.github.io/eww/configuration.html#dynamically-generated-widgets-with-literal)
 
 **Example:**
@@ -45,31 +44,26 @@ $ eww-tray
  (image :path "/tmp/.org.chromium.Chromium.vhJVvF/Element1_14.png" :image-width 24 :image-height 24) (image :path "/home/okno/.local/share/Steam/public/steam_tray_mono.png" :image-width 24 :image-height 24)
 ```
 
-Now let us tell `eww` about our system tray :
+Now let's tell `eww` about our system tray:
 ```
 # eww.yuck
 (deflisten tray_icons :initial "" "eww-tray")
 
 (defwidget tray []
-  (box
-    :class "tray"
-    (literal :content "(box ${tray_icons})")
-  )
+  (literal :content "(box :class 'tray' ${tray_icons})")
 )
 ```
 
-Add this widget to one of your eww window and reload, you should now see something like this : 
+Add this widget to one of your eww bars and reload, you should now see something like this: 
 
 ![screenshot](docs/screenshot.png)
 
 ## Template context
 
-```json
+```js
 "tray_icons": [
   {
     "icon_path": String
   }   
 ]
 ```
-
-
