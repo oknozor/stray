@@ -42,7 +42,9 @@ impl Watcher {
             let removed = self.registered_status_notifier_items.remove(&notifier);
             if removed {
                 self.sender
-                    .send(Message::Remove { address: notifier_address.to_string() })
+                    .send(Message::Remove {
+                        address: notifier_address.to_string(),
+                    })
                     .await
                     .unwrap();
             }

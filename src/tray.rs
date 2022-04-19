@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use anyhow::anyhow;
 use serde::Serialize;
@@ -11,27 +10,38 @@ type DBusProperties = HashMap<std::string::String, OwnedValue>;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct TrayIcon {
-    pub(crate) icon_path: String,
-    pub(crate) tooltip: String,
+    icon_path: String,
+    tooltip: String,
+}
+#[derive(Debug)]
+pub struct TrayIconMessage {
+    pub(crate) theme_path: Option<String>,
+    pub(crate) icon_name: String,
 }
 
-impl TryFrom<DBusProperties> for TrayIcon {
+impl TryFrom<DBusProperties> for TrayIconMessage {
     type Error = anyhow::Error;
 
     fn try_from(props: HashMap<String, OwnedValue>) -> Result<Self, Self::Error> {
-        let icon_theme_path = props
+        let theme_path = props
             .get("IconThemePath")
             .ok_or_else(|| anyhow!("Could not get property 'IconThemePath"))
             .map(|theme| theme.downcast_ref::<str>().unwrap_or("").to_string())?;
+
+        let theme_path = if theme_path.is_empty() {
+            None
+        } else {
+            Some(theme_path)
+        };
 
         let icon_name = props
             .get("IconName")
             .ok_or_else(|| anyhow!("Could not get property 'IconName'"))
             .map(|theme| theme.downcast_ref::<str>().unwrap_or("").to_string())?;
 
-        Ok(TrayIcon {
-            icon_path: format!("{icon_theme_path}/{icon_name}.png"),
-            tooltip: "The tooltip".to_string(),
+        Ok(TrayIconMessage {
+            theme_path,
+            icon_name,
         })
     }
 }
@@ -44,8 +54,13 @@ pub struct TrayUpdater {
 
 #[derive(Debug)]
 pub enum Message {
-    Update { address: String, icon: TrayIcon },
-    Remove { address: String },
+    Update {
+        address: String,
+        icon: TrayIconMessage,
+    },
+    Remove {
+        address: String,
+    },
 }
 
 impl TrayUpdater {
@@ -67,7 +82,13 @@ impl TrayUpdater {
         while let Some(message) = self.rx.recv().await {
             match message {
                 Message::Update { address, icon } => {
-                    if PathBuf::from(&icon.icon_path).exists() {
+                    let icon_name = try_fetch_icon(&icon.icon_name, icon.theme_path);
+
+                    if let Ok(icon) = icon_name {
+                        let icon = TrayIcon {
+                            icon_path: icon,
+                            tooltip: "the tool tip".to_string(),
+                        };
                         let _ = self.icons.insert(address, icon);
                     }
                 }
@@ -85,7 +106,30 @@ impl TrayUpdater {
         let tray_icons: Vec<TrayIcon> = self.icons.values().cloned().collect();
         context.insert("tray_icons", &tray_icons);
         let eww_tray = self.tera.render("default", &context).unwrap();
-        let eww_tray = eww_tray.replace("\n", "");
+        let eww_tray = eww_tray.replace('\n', "");
         println!("{eww_tray}");
     }
+}
+
+const FALL_BACK_THEME: &str = "hicolor";
+
+fn try_fetch_icon(name: &str, additional_search_path: Option<String>) -> anyhow::Result<String> {
+    if let Some(path) = additional_search_path {
+        return Ok(format!("{path}/{name}.png"));
+    };
+
+    let theme = linicon::get_system_theme().unwrap();
+    linicon::lookup_icon(name)
+        .from_theme(theme)
+        .use_fallback_themes(true)
+        .next()
+        .and_then(|icon| icon.ok())
+        .or_else(|| {
+            linicon::lookup_icon(name)
+                .from_theme(FALL_BACK_THEME)
+                .next()
+                .and_then(|icon| icon.ok())
+        })
+        .map(|icon| icon.path.to_str().unwrap().to_string())
+        .ok_or_else(|| anyhow!("Icon not found"))
 }

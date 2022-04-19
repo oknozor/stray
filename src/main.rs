@@ -10,7 +10,7 @@ use dbus::notifier_item_proxy::StatusNotifierItemProxy;
 use dbus::notifier_watcher_proxy::StatusNotifierWatcherProxy;
 use dbus::notifier_watcher_service::Watcher;
 
-use crate::tray::{Message, TrayIcon, TrayUpdater};
+use crate::tray::{Message, TrayIconMessage, TrayUpdater};
 
 mod dbus;
 pub mod tray;
@@ -169,7 +169,7 @@ async fn fetch_properties_and_update(
 ) -> anyhow::Result<()> {
     let interface = InterfaceName::from_static_str("org.kde.StatusNotifierItem")?;
     let props = dbus_properties_proxy.get_all(interface).await?;
-    let icon = TrayIcon::try_from(props)?;
+    let icon = TrayIconMessage::try_from(props)?;
     sender
         .send(Message::Update {
             address: destination.to_string(),
