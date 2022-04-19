@@ -2,7 +2,7 @@
 [StatusNotifierWatcher](https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierWatcher/)
 implementation for [eww](https://github.com/elkowar/eww)
 
-### **⚠️ Eww-tray is a work in progress, expect bugs until first release.⚠️**
+### ⚠️ Eww-tray is a work in progress, expect bugs until first release. ⚠️
 
 ## Installation
 
@@ -36,7 +36,7 @@ Values surrounded with `{{` `}}` will be rendered dynamically whenever a system 
 See [template](#template-context) for more info.
 
 Now let's run `eww-tray` to ensure our template renders correctly. 
-If you have any running app interacting with the system tray you should see some outputs.
+If you have any running apps interacting with the system tray you should see some outputs.
 
 ```
 $ eww-tray
