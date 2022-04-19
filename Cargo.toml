@@ -1,0 +1,16 @@
+[package]
+name = "eww-tray"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+event-listener = "2.5.2"
+tokio = { version = "1.17.0", features = ["rt-multi-thread", "macros"] }
+tokio-stream = "0.1.8"
+zbus = { version = "2", default-features = false, features = ["tokio", "gvariant"] }
+anyhow = "1.0.56"
+tera = "1.15.0"
+serde = "1.0.136"
+dirs = "4.0.0"
