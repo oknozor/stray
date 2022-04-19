@@ -85,6 +85,7 @@ impl TrayUpdater {
         let tray_icons: Vec<TrayIcon> = self.icons.values().cloned().collect();
         context.insert("tray_icons", &tray_icons);
         let eww_tray = self.tera.render("default", &context).unwrap();
+        let eww_tray = eww_tray.replace("\n", "");
         println!("{eww_tray}");
     }
 }
