@@ -1,0 +1,16 @@
+[package]
+name = "eww-tray"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+systray-rs = { path = "../systray-rs" }
+tokio = { version = "1.17.0", features = ["rt-multi-thread", "macros"] }
+tera = "1.15.0"
+linicon = "2.3.0"
+anyhow = "1.0.56"
+dirs = "4.0.0"
+serde = "1.0.136"
+serde_json = "1.0.79"

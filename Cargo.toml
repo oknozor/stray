@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "systray-rs",
+    "eww-tray"
+]
