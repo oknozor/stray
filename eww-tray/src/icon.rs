@@ -1,29 +1,70 @@
 use anyhow::anyhow;
 use systray_rs::tray::StatusNotifierItem;
 use serde::{Serialize};
+use systray_rs::menu::{MenuType, SubMenu, TrayMenu};
 
 #[derive(Serialize)]
-pub struct TrayIcon {
-    icon_path: String
+pub struct EwwTrayItem {
+    icon_path: String,
+    menu: Option<EwwTrayMenu>,
 }
 
-impl TryFrom<&StatusNotifierItem> for TrayIcon {
+#[derive(Serialize)]
+pub struct EwwTrayMenu {
+    submenu: Vec<EwwTraySubMenu>
+}
+
+impl From<&TrayMenu> for EwwTrayMenu {
+    fn from(menu: &TrayMenu) -> Self {
+        Self {
+            submenu: menu.submenus
+                .iter()
+                .map(EwwTraySubMenu::from)
+                .collect()
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct EwwTraySubMenu {
+    label: String,
+    r#type: MenuType,
+    submenu: Vec<EwwTraySubMenu>
+}
+
+impl From<&SubMenu> for EwwTraySubMenu {
+    fn from(menu: &SubMenu) -> Self {
+        Self {
+            label: menu.label.clone(),
+            r#type: menu.menu_type,
+            submenu: menu.submenu.iter()
+                .map(EwwTraySubMenu::from)
+                .collect()
+        }
+    }
+}
+
+impl TryFrom<&(StatusNotifierItem, Option<TrayMenu>)> for EwwTrayItem {
     type Error = anyhow::Error;
 
-    fn try_from(item: &StatusNotifierItem) -> Result<Self, Self::Error> {
-        let icon_name = &item.icon_name;
+    fn try_from((item, menu): &(StatusNotifierItem, Option<TrayMenu>)) -> Result<Self, Self::Error> {
+        if let Some(icon_name) = &item.icon_name {
+            let icon_path = match &item.icon_theme_path {
+                None => None,
+                Some(path) if path.is_empty() => Some(path.as_str()),
+                Some(path) => Some(path.as_str()),
+            };
 
-        let icon_path = if item.icon_theme_path.is_empty() {
-            None
+            let icon_path = try_fetch_icon(icon_name, icon_path)?;
+            let menu = menu.as_ref().map(EwwTrayMenu::from);
+
+            Ok(Self {
+                icon_path,
+                menu
+            })
         } else {
-            Some(item.icon_theme_path.as_str())
-        };
-
-        let icon_path = try_fetch_icon(icon_name, icon_path)?;
-
-        Ok(Self {
-            icon_path
-        })
+            Err(anyhow!("No icon found"))
+        }
     }
 }
 

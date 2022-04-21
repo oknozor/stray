@@ -1,26 +1,29 @@
 use std::collections::HashMap;
 
 use tera::Tera;
+use systray_rs::menu::TrayMenu;
 
 use systray_rs::SystemTray;
 use systray_rs::tray::{Message, StatusNotifierItem};
 use systray_rs::tokio_stream::StreamExt;
-use crate::icon::TrayIcon;
+use crate::icon::EwwTrayItem;
 
 mod icon;
 
 struct EwwTray {
     tray: SystemTray,
     tera: Tera,
-    items: HashMap<String, StatusNotifierItem>,
+    items: HashMap<String, (StatusNotifierItem, Option<TrayMenu>)>,
 }
 
 impl EwwTray {
     fn render(&self) {
         let mut context = tera::Context::new();
-        let tray_icons: Vec<TrayIcon> = self.items.values()
-            .filter_map(|item| TrayIcon::try_from(item).ok())
+        let tray_icons: Vec<EwwTrayItem> = self.items.values()
+            .filter_map(|item| EwwTrayItem::try_from(item).ok())
             .collect();
+        let result = serde_json::to_string(&tray_icons).unwrap();
+        println!("{}", result);
         context.insert("tray_icons", &tray_icons);
         let eww_tray = self.tera.render("default", &context).unwrap();
         let eww_tray = eww_tray.replace('\n', "");
@@ -30,8 +33,8 @@ impl EwwTray {
     async fn run(&mut self) {
         while let Some(message) = self.tray.next().await {
             match message {
-                Message::Update { id, item } => {
-                    self.items.insert(id, item);
+                Message::Update { id, item, menu } => {
+                    self.items.insert(id, (item, menu));
                 }
                 Message::Remove { address: id } => {
                     self.items.remove(&id);

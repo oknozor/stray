@@ -99,8 +99,7 @@ impl Watcher {
     async fn status_notifier_host_unregistered(ctxt: &SignalContext<'_>) -> Result<()>;
 
     #[dbus_interface(signal)]
-    async fn status_notifier_item_registered(ctxt: &SignalContext<'_>, service: &str)
-                                             -> Result<()>;
+    async fn status_notifier_item_registered(ctxt: &SignalContext<'_>, service: &str) -> Result<()>;
 
     #[dbus_interface(signal)]
     async fn status_notifier_item_unregistered(

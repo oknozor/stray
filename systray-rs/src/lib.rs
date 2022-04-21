@@ -12,14 +12,18 @@ use zbus::{Connection, ConnectionBuilder};
 use zbus::fdo::PropertiesProxy;
 use zbus::names::InterfaceName;
 
+use dbus::dbusmenu::DBusMenuProxy;
 use dbus::notifier_item_proxy::StatusNotifierItemProxy;
 use dbus::notifier_watcher_proxy::StatusNotifierWatcherProxy;
 use dbus::notifier_watcher_service::Watcher;
+use crate::dbus::dbusmenu::{MenuLayout};
 
+use crate::menu::TrayMenu;
 use crate::tray::{Message, StatusNotifierItem};
 
 pub mod dbus;
 pub mod tray;
+pub mod menu;
 
 pub struct SystemTray(Receiver<Message>);
 
@@ -91,6 +95,12 @@ impl NotifierAddress {
                 destination: destination.to_string(),
                 path: format!("/{}", path),
             })
+        } else if service.contains(':') {
+            let split = service.split(':').collect::<Vec<&str>>();
+            Ok(NotifierAddress {
+                destination: format!(":{}", split[1]),
+                path: "/StatusNotifierItem".to_string(),
+            })
         } else {
             return Err(anyhow!("Service path {:?} was not understood", service));
         }
@@ -141,9 +151,11 @@ async fn status_notifier_host_handle(sender: Sender<Message>) -> anyhow::Result<
     status_notifier_proxy.register_status_notifier_host(&host).await?;
 
     let notifier_items: Vec<String> = status_notifier_proxy.registered_status_notifier_items().await?;
+
     // Start watching for all registered notifier items
     for service in notifier_items.iter() {
-        if let Ok(notifier_address) = NotifierAddress::from_notifier_service(service) {
+        let service = NotifierAddress::from_notifier_service(service);
+        if let Ok(notifier_address) = service {
             let connection = connection.clone();
             let sender = sender.clone();
             watch_notifier_props(notifier_address, connection, sender).await?;
@@ -156,7 +168,9 @@ async fn status_notifier_host_handle(sender: Sender<Message>) -> anyhow::Result<
     while let Some(notifier) = new_notifier.next().await {
         let args = notifier.args()?;
         let service: &str = args.service();
-        if let Ok(notifier_address) = NotifierAddress::from_notifier_service(service) {
+
+        let service = NotifierAddress::from_notifier_service(service);
+        if let Ok(notifier_address) = service {
             let connection = connection.clone();
             let sender = sender.clone();
             tokio::spawn(async move {
@@ -189,6 +203,7 @@ async fn watch_notifier_props(
             sender.clone(),
             &dbus_properties_proxy,
             address_parts.destination.clone(),
+            connection.clone(),
         ).await?;
 
         // Connect to the notifier proxy to watch for properties change
@@ -205,7 +220,8 @@ async fn watch_notifier_props(
             fetch_properties_and_update(
                 sender.clone(),
                 &dbus_properties_proxy,
-                address_parts.destination.clone()
+                address_parts.destination.clone(),
+                connection.clone(),
             )
                 .await?;
         }
@@ -221,6 +237,7 @@ async fn fetch_properties_and_update(
     sender: Sender<Message>,
     dbus_properties_proxy: &PropertiesProxy<'_>,
     item_address: String,
+    connection: Connection,
 ) -> anyhow::Result<()> {
     let interface = InterfaceName::from_static_str("org.kde.StatusNotifierItem")?;
     let props = dbus_properties_proxy.get_all(interface).await?;
@@ -228,10 +245,26 @@ async fn fetch_properties_and_update(
 
     // Only send item that maps correctly to our internal StatusNotifierItem representation
     if let Ok(item) = item {
+        let menu = match &item.menu {
+            None => None,
+            Some(menu_address) => {
+                let item_address = item_address.as_str();
+                let dbus_menu_proxy = DBusMenuProxy::builder(&connection)
+                    .destination(item_address)?
+                    .path(menu_address.as_str())?
+                    .build()
+                    .await?;
+
+                let menu: MenuLayout = dbus_menu_proxy.get_layout(0, 10, &[]).await.unwrap();
+                Some(TrayMenu::try_from(menu)?)
+            }
+        };
+
         sender
             .send(Message::Update {
-                id: item_address,
+                id: item_address.to_string(),
                 item,
+                menu
             })
             .await?;
     }

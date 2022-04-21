@@ -12,3 +12,5 @@ tokio-stream = "0.1.8"
 zbus = { version = "2", default-features = false, features = ["tokio", "gvariant"] }
 anyhow = "1.0.56"
 serde = "1.0.136"
+serde_json = "1.0.79"
+byteorder = "1.4.3"

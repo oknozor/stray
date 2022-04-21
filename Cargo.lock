@@ -1082,8 +1082,10 @@ name = "systray-rs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "byteorder",
  "event-listener",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-stream",
  "zbus",
