@@ -13,10 +13,10 @@
 use std::collections::HashMap;
 
 use zbus::dbus_proxy;
-use zbus::zvariant::{OwnedValue};
+use zbus::zvariant::OwnedValue;
 
-use serde::{Serialize, Deserialize};
-use zbus::zvariant::{Type};
+use serde::{Deserialize, Serialize};
+use zbus::zvariant::Type;
 
 #[derive(Deserialize, Serialize, Type, PartialEq, Debug)]
 pub struct MenuLayout {
@@ -31,13 +31,10 @@ pub struct SubMenuLayout {
     pub submenus: Vec<OwnedValue>,
 }
 
-
 #[dbus_proxy(interface = "com.canonical.dbusmenu")]
 trait DBusMenu {
-    /// AboutToShow method
     fn about_to_show(&self, id: i32) -> zbus::Result<bool>;
 
-    /// Event method
     fn event(
         &self,
         id: i32,
@@ -46,7 +43,6 @@ trait DBusMenu {
         timestamp: u32,
     ) -> zbus::Result<()>;
 
-    /// GetGroupProperties method
     fn get_group_properties(
         &self,
         ids: &[i32],
@@ -56,26 +52,21 @@ trait DBusMenu {
         Vec<(
             i32,
             std::collections::HashMap<String, zbus::zvariant::OwnedValue>,
-        )>),
-    >;
+        )>,
+    )>;
 
-    /// GetLayout method
     fn get_layout(
         &self,
         parent_id: i32,
         recursion_depth: i32,
         property_names: &[&str],
-        //  (UInt32 revision, Struct of (Int32, Dict of {String, Variant}, Array of [Variant]) layout)
     ) -> zbus::Result<MenuLayout>;
 
-    /// GetProperty method
     fn get_property(&self, id: i32, name: &str) -> zbus::Result<zbus::zvariant::OwnedValue>;
 
-    /// ItemActivationRequested signal
     #[dbus_proxy(signal)]
     fn item_activation_requested(&self, id: i32, timestamp: u32) -> zbus::Result<()>;
 
-    /// ItemsPropertiesUpdated signal
     #[dbus_proxy(signal)]
     fn items_properties_updated(
         &self,
@@ -86,15 +77,12 @@ trait DBusMenu {
         removed_props: Vec<(i32, Vec<&str>)>,
     ) -> zbus::Result<()>;
 
-    /// LayoutUpdated signal
     #[dbus_proxy(signal)]
     fn layout_updated(&self, revision: u32, parent: i32) -> zbus::Result<()>;
 
-    /// Status property
     #[dbus_proxy(property)]
     fn status(&self) -> zbus::Result<String>;
 
-    /// Version property
     #[dbus_proxy(property)]
     fn version(&self) -> zbus::Result<u32>;
 }

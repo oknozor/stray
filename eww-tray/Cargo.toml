@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 systray-rs = { path = "../systray-rs" }
-tokio = { version = "1.17.0", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.17.0", features = ["rt-multi-thread", "macros", "process"] }
 tera = "1.15.0"
 linicon = "2.3.0"
 anyhow = "1.0.56"

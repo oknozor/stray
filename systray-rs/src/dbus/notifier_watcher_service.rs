@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use event_listener::Event;
 use tokio::sync::mpsc::Sender;
-use zbus::{MessageHeader, SignalContext};
 use zbus::dbus_interface;
 use zbus::Result;
+use zbus::{MessageHeader, SignalContext};
 
 use crate::Message;
 
@@ -99,7 +99,8 @@ impl Watcher {
     async fn status_notifier_host_unregistered(ctxt: &SignalContext<'_>) -> Result<()>;
 
     #[dbus_interface(signal)]
-    async fn status_notifier_item_registered(ctxt: &SignalContext<'_>, service: &str) -> Result<()>;
+    async fn status_notifier_item_registered(ctxt: &SignalContext<'_>, service: &str)
+        -> Result<()>;
 
     #[dbus_interface(signal)]
     async fn status_notifier_item_unregistered(

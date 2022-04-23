@@ -1,11 +1,14 @@
+use serde::Serialize;
 use std::collections::HashMap;
 
 use tera::Tera;
-use systray_rs::menu::TrayMenu;
 
-use systray_rs::SystemTray;
-use systray_rs::tray::{Message, StatusNotifierItem};
+use systray_rs::message::menu::TrayMenu;
+use systray_rs::message::tray::StatusNotifierItem;
+use systray_rs::message::Message;
 use systray_rs::tokio_stream::StreamExt;
+use systray_rs::SystemTray;
+
 use crate::icon::EwwTrayItem;
 
 mod icon;
@@ -17,14 +20,12 @@ struct EwwTray {
 }
 
 impl EwwTray {
-    fn render(&self) {
+    fn render<T>(&self, value: T)
+    where
+        T: Serialize,
+    {
         let mut context = tera::Context::new();
-        let tray_icons: Vec<EwwTrayItem> = self.items.values()
-            .filter_map(|item| EwwTrayItem::try_from(item).ok())
-            .collect();
-        let result = serde_json::to_string(&tray_icons).unwrap();
-        println!("{}", result);
-        context.insert("tray_icons", &tray_icons);
+        context.insert("tray_icons", &value);
         let eww_tray = self.tera.render("default", &context).unwrap();
         let eww_tray = eww_tray.replace('\n', "");
         println!("{eww_tray}");
@@ -40,8 +41,27 @@ impl EwwTray {
                     self.items.remove(&id);
                 }
             }
+            let tray_icons: Vec<EwwTrayItem> = self
+                .items
+                .values()
+                .filter_map(|item| EwwTrayItem::try_from(item).ok())
+                .collect();
+            let menus = tray_icons
+                .iter()
+                .filter_map(|item| item.menu.as_ref())
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>()
+                .join(" ");
 
-            self.render();
+            let update = format!("tray_menu_content={}", &menus);
+            println!("{}", update);
+            tokio::process::Command::new("eww")
+                .args(&["update", &update])
+                .output()
+                .await
+                .unwrap();
+
+            self.render(tray_icons);
         }
     }
 }
@@ -58,10 +78,9 @@ async fn main() -> anyhow::Result<()> {
         tray: SystemTray::new().await,
         tera,
         items: HashMap::new(),
-    }.run().await;
+    }
+    .run()
+    .await;
 
     Ok(())
 }
-
-
-

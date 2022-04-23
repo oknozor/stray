@@ -1,45 +1,40 @@
 use anyhow::anyhow;
-use systray_rs::tray::StatusNotifierItem;
-use serde::{Serialize};
-use systray_rs::menu::{MenuType, SubMenu, TrayMenu};
+use serde::Serialize;
+use systray_rs::message::menu::{MenuItem, MenuType, TrayMenu};
+use systray_rs::message::tray::StatusNotifierItem;
 
 #[derive(Serialize)]
 pub struct EwwTrayItem {
-    icon_path: String,
-    menu: Option<EwwTrayMenu>,
+    pub icon_path: String,
+    pub menu: Option<String>,
 }
 
 #[derive(Serialize)]
 pub struct EwwTrayMenu {
-    submenu: Vec<EwwTraySubMenu>
+    pub submenu: Vec<EwwTraySubMenu>,
 }
 
 impl From<&TrayMenu> for EwwTrayMenu {
     fn from(menu: &TrayMenu) -> Self {
         Self {
-            submenu: menu.submenus
-                .iter()
-                .map(EwwTraySubMenu::from)
-                .collect()
+            submenu: menu.submenus.iter().map(EwwTraySubMenu::from).collect(),
         }
     }
 }
 
 #[derive(Serialize)]
 pub struct EwwTraySubMenu {
-    label: String,
-    r#type: MenuType,
-    submenu: Vec<EwwTraySubMenu>
+    pub label: String,
+    pub r#type: MenuType,
+    pub submenu: Vec<EwwTraySubMenu>,
 }
 
-impl From<&SubMenu> for EwwTraySubMenu {
-    fn from(menu: &SubMenu) -> Self {
+impl From<&MenuItem> for EwwTraySubMenu {
+    fn from(menu: &MenuItem) -> Self {
         Self {
             label: menu.label.clone(),
             r#type: menu.menu_type,
-            submenu: menu.submenu.iter()
-                .map(EwwTraySubMenu::from)
-                .collect()
+            submenu: menu.submenu.iter().map(EwwTraySubMenu::from).collect(),
         }
     }
 }
@@ -47,7 +42,9 @@ impl From<&SubMenu> for EwwTraySubMenu {
 impl TryFrom<&(StatusNotifierItem, Option<TrayMenu>)> for EwwTrayItem {
     type Error = anyhow::Error;
 
-    fn try_from((item, menu): &(StatusNotifierItem, Option<TrayMenu>)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (item, menu): &(StatusNotifierItem, Option<TrayMenu>),
+    ) -> Result<Self, Self::Error> {
         if let Some(icon_name) = &item.icon_name {
             let icon_path = match &item.icon_theme_path {
                 None => None,
@@ -57,11 +54,15 @@ impl TryFrom<&(StatusNotifierItem, Option<TrayMenu>)> for EwwTrayItem {
 
             let icon_path = try_fetch_icon(icon_name, icon_path)?;
             let menu = menu.as_ref().map(EwwTrayMenu::from);
-
-            Ok(Self {
-                icon_path,
-                menu
-            })
+            let menu = menu.map(|menu| {
+                menu.submenu
+                    .iter()
+                    .filter(|sub| sub.r#type == MenuType::Standard)
+                    .map(|sub| format!("(button :class 'menu active'  '{}')", sub.label))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            });
+            Ok(Self { icon_path, menu })
         } else {
             Err(anyhow!("No icon found"))
         }
@@ -90,4 +91,3 @@ fn try_fetch_icon(name: &str, additional_search_path: Option<&str>) -> anyhow::R
         .map(|icon| icon.path.to_str().unwrap().to_string())
         .ok_or_else(|| anyhow!("Icon not found"))
 }
-

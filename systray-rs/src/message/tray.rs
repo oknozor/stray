@@ -4,28 +4,10 @@ use std::str::FromStr;
 use anyhow::anyhow;
 use serde::Serialize;
 use zbus::zvariant::{ObjectPath, OwnedValue};
-use crate::TrayMenu;
 
 type DBusProperties = HashMap<std::string::String, OwnedValue>;
 
 struct PropsWrapper(DBusProperties);
-
-#[derive(Debug, Serialize)]
-pub struct NotifierItems {
-    items: HashMap<String, StatusNotifierItem>,
-}
-
-#[derive(Debug, Serialize)]
-pub enum Message {
-    Update {
-        id: String,
-        item: StatusNotifierItem,
-        menu: Option<TrayMenu>,
-    },
-    Remove {
-        address: String,
-    },
-}
 
 /// Represent a Notifier item status, see https://github.com/AyatanaIndicators/libayatana-appindicator/blob/c43a76e643ab930725d20d306bc3ca5e7874eebe/src/notification-item.xml
 /// TODO
@@ -69,7 +51,10 @@ impl FromStr for Status {
         match s {
             "Passive" => Ok(Status::Active),
             "Active" => Ok(Status::Passive),
-            other => Err(anyhow!("Unknown 'Status' for status notifier item {}", other))
+            other => Err(anyhow!(
+                "Unknown 'Status' for status notifier item {}",
+                other
+            )),
         }
     }
 }
@@ -103,16 +88,14 @@ impl FromStr for Category {
             "Communications" => Ok(Category::Communications),
             "SystemServices" => Ok(Category::SystemServices),
             "Hardware" => Ok(Category::Hardware),
-            other => Err(anyhow!("Unknown 'Status' for status notifier item {}", other))
+            other => Err(anyhow!(
+                "Unknown 'Status' for status notifier item {}",
+                other
+            )),
         }
     }
 }
 
-/// ***
-/// It's a name that should be unique for this application and consistent between sessions,
-/// such as the application name itself.
-/// ***
-///
 impl TryFrom<DBusProperties> for StatusNotifierItem {
     type Error = anyhow::Error;
     fn try_from(props: HashMap<String, OwnedValue>) -> anyhow::Result<Self> {
@@ -138,33 +121,36 @@ impl TryFrom<DBusProperties> for StatusNotifierItem {
 
 impl PropsWrapper {
     fn get_string(&self, key: &str) -> Option<String> {
-        self.0.get(key)
-            .and_then(|value| value.downcast_ref::<str>()
-                .map(|value| value.to_string()))
+        self.0
+            .get(key)
+            .and_then(|value| value.downcast_ref::<str>().map(|value| value.to_string()))
     }
 
     fn get_object_path(&self, key: &str) -> Option<String> {
-        self.0.get(key)
-            .and_then(|value| value.downcast_ref::<ObjectPath>()
-                .map(|value| value.to_string()))
+        self.0.get(key).and_then(|value| {
+            value
+                .downcast_ref::<ObjectPath>()
+                .map(|value| value.to_string())
+        })
     }
 
     fn get_category(&self) -> anyhow::Result<Category> {
-        self.0.get("Category")
-            .and_then(|value| value.downcast_ref::<str>()
-                .map(Category::from_str))
+        self.0
+            .get("Category")
+            .and_then(|value| value.downcast_ref::<str>().map(Category::from_str))
             .unwrap_or(Err(anyhow!("'Category' not found for item")))
     }
 
     fn get_status(&self) -> anyhow::Result<Status> {
-        self.0.get("Status")
-            .and_then(|value| value.downcast_ref::<str>()
-                .map(Status::from_str))
+        self.0
+            .get("Status")
+            .and_then(|value| value.downcast_ref::<str>().map(Status::from_str))
             .unwrap_or(Err(anyhow!("'Status' not found for item")))
     }
 
     fn get_u32(&self, key: &str) -> Option<u32> {
-        self.0.get(key)
+        self.0
+            .get(key)
             .and_then(|value| value.downcast_ref::<u32>().copied())
     }
 }
