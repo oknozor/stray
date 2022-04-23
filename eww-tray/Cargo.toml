@@ -8,9 +8,7 @@ edition = "2021"
 [dependencies]
 stray = { path = "../stray" }
 tokio = { version = "1.17.0", features = ["rt-multi-thread", "macros", "process"] }
-tera = "1.15.0"
 linicon = "2.3.0"
 anyhow = "1.0.56"
-dirs = "4.0.0"
 serde = "1.0.136"
 serde_json = "1.0.79"

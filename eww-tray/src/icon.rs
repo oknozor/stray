@@ -1,17 +1,23 @@
+use std::collections::HashMap;
 use anyhow::anyhow;
 use serde::Serialize;
 
 use stray::message::menu::{MenuItem, MenuType, TrayMenu};
 use stray::message::tray::StatusNotifierItem;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
+pub struct EwwTrayOutput<'a> {
+    pub(crate) icons: Vec<&'a EwwTrayItem>,
+    pub(crate) menus: &'a HashMap<String, Vec<EwwTraySubMenu>>,
+}
+
+#[derive(Serialize, Debug)]
 pub struct EwwTrayItem {
     pub id: String,
     pub icon_path: String,
-    pub menu: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct EwwTrayMenu {
     pub submenu: Vec<EwwTraySubMenu>,
 }
@@ -24,7 +30,7 @@ impl From<&TrayMenu> for EwwTrayMenu {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct EwwTraySubMenu {
     pub label: String,
     pub r#type: MenuType,
@@ -41,12 +47,10 @@ impl From<&MenuItem> for EwwTraySubMenu {
     }
 }
 
-impl TryFrom<&(StatusNotifierItem, Option<TrayMenu>)> for EwwTrayItem {
+impl TryFrom<&StatusNotifierItem> for EwwTrayItem {
     type Error = anyhow::Error;
 
-    fn try_from(
-        (item, menu): &(StatusNotifierItem, Option<TrayMenu>),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &StatusNotifierItem) -> Result<Self, Self::Error> {
         if let Some(icon_name) = &item.icon_name {
             let icon_path = match &item.icon_theme_path {
                 None => None,
@@ -55,17 +59,7 @@ impl TryFrom<&(StatusNotifierItem, Option<TrayMenu>)> for EwwTrayItem {
             };
 
             let icon_path = try_fetch_icon(icon_name, icon_path)?;
-            let menu = menu.as_ref().map(EwwTrayMenu::from);
-            let menu = menu.map(|menu| {
-                menu.submenu
-                    .iter()
-                    .filter(|sub| sub.r#type == MenuType::Standard)
-                    .map(|sub| format!("(button :class 'menu active'  '{}')", sub.label))
-                    .collect::<Vec<String>>()
-                    .join(" ")
-            });
-
-            Ok(Self { id: item.id.clone(), icon_path, menu })
+            Ok(Self { id: item.id.clone(), icon_path })
         } else {
             Err(anyhow!("No icon found"))
         }

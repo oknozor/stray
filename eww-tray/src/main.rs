@@ -1,88 +1,70 @@
 use std::collections::HashMap;
-
-use serde::Serialize;
-use tera::Tera;
-
-use stray::message::menu::TrayMenu;
 use stray::message::Message;
-use stray::message::tray::StatusNotifierItem;
 use stray::SystemTray;
 use stray::tokio_stream::StreamExt;
 
-use crate::icon::EwwTrayItem;
+use crate::icon::{EwwTrayItem, EwwTrayMenu, EwwTrayOutput, EwwTraySubMenu};
 
 mod icon;
 
 struct EwwTray {
     tray: SystemTray,
-    tera: Tera,
-    items: HashMap<String, (StatusNotifierItem, Option<TrayMenu>)>,
+    icons: HashMap<String, EwwTrayItem>,
+    menus: HashMap<String, Vec<EwwTraySubMenu>>,
 }
 
 impl EwwTray {
-    fn render<T>(&self, value: T)
-        where
-            T: Serialize,
-    {
-        let mut context = tera::Context::new();
-        context.insert("tray_icons", &value);
-        let eww_tray = self.tera.render("default", &context).unwrap();
-        let eww_tray = eww_tray.replace('\n', "");
-        println!("{eww_tray}");
+    async fn run(&mut self) -> anyhow::Result<()> {
+        while let Some(message) = self.tray.next().await {
+            self.handle_message(message)?;
+            let json_tray = serde_json::to_string(&self.get_output())?;
+            println!("{}", json_tray);
+        }
+
+        Ok(())
     }
 
-    async fn run(&mut self) {
-        while let Some(message) = self.tray.next().await {
-            match message {
-                Message::Update { id, item, menu } => {
-                    self.items.insert(id, (item, menu));
-                }
-                Message::Remove { address: id } => {
-                    self.items.remove(&id);
+    fn handle_message(&mut self, message: Message) -> anyhow::Result<()> {
+        match message {
+            Message::Update { id, item, menu } => {
+                let icon = EwwTrayItem::try_from(&item)?;
+                let icon_id = icon.id.clone();
+                self.icons.insert(id, icon);
+                menu.and_then(|menu| {
+                    self.menus.insert(icon_id, EwwTrayMenu::from(&menu).submenu)
+                });
+            }
+            Message::Remove { address: id } => {
+                if let Some(icon_removed) = self.icons.remove(&id) {
+                    self.menus.remove(&icon_removed.id);
                 }
             }
+        }
 
-            let tray_icons: Vec<EwwTrayItem> = self
-                .items
-                .values()
-                .filter_map(|item| EwwTrayItem::try_from(item).ok())
-                .collect();
+        Ok(())
+    }
 
-            let mut menus = HashMap::new();
-            for icon in &tray_icons {
-                if let Some(menu) = &icon.menu {
-                    menus.insert(icon.id.clone(), menu.clone());
-                }
-            }
-            let menus = serde_json::to_string(&menus).unwrap();
-            let update = format!("tray_menu_content={}", &menus);
+    fn get_output(&self) -> EwwTrayOutput {
+        let icons = self.icons.iter()
+            .map(|(_, icon)| icon)
+            .collect();
 
-            tokio::process::Command::new("eww")
-                .args(&["update", &update])
-                .output()
-                .await
-                .unwrap();
-
-            self.render(tray_icons);
+        EwwTrayOutput {
+            icons,
+            menus: &self.menus
         }
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config = dirs::config_dir().expect("Could not find XDG_CONFIG_DIR");
-    let config = config.join("eww-tray.yuck");
-
-    let mut tera = Tera::default();
-    tera.add_template_file(config, Some("default"))?;
-
     EwwTray {
         tray: SystemTray::new().await,
-        tera,
-        items: HashMap::new(),
+        icons: Default::default(),
+        menus: Default::default()
     }
         .run()
-        .await;
+        .await?;
 
     Ok(())
 }
