@@ -9,15 +9,23 @@ type DBusProperties = HashMap<std::string::String, OwnedValue>;
 
 struct PropsWrapper(DBusProperties);
 
-/// Represent a Notifier item status, see https://github.com/AyatanaIndicators/libayatana-appindicator/blob/c43a76e643ab930725d20d306bc3ca5e7874eebe/src/notification-item.xml
-/// TODO
+/// An Icon used for reporting the status of an application to the user or provide a quick access
+/// to common actions performed by that application. You can read the full specification at
+/// [freedesktop.org/wiki/Specifications/StatusNotifierItem][https://freedesktop.org/wiki/Specifications/StatusNotifierItem]
+/// or take a look at [the reference implementation](https://github.com/AyatanaIndicators/libayatana-appindicator/blob/c43a76e643ab930725d20d306bc3ca5e7874eebe/src/notification-item.xml)
+///
+/// Note that this implementation is not feature complete. It only contains the minimal data
+/// needed to build a system tray and display tray menus. If you feel something important is
+/// should be added please reach out.
 #[derive(Serialize, Debug)]
 pub struct StatusNotifierItem {
-    pub id: Option<String>,
+    /// It's a name that should be unique for this application and consistent between sessions,
+    /// such as the application name itself.
+    pub id: String,
     /// Describes the category of this item.
     pub category: Category,
+    /// Describes the status of this item or of the associated application.
     pub status: Status,
-
     /// The StatusNotifierItem can carry an icon that can be used by the visualization to identify the item.
     /// An icon can either be identified by its Freedesktop-compliant icon name, carried by
     /// this property of by the icon data itself, carried by the property IconPixmap.
@@ -26,21 +34,25 @@ pub struct StatusNotifierItem {
     /// Carries an ARGB32 binary representation of the icon, the format of icon data used in this specification
     /// is described in Section Icons
     pub icon_accessible_desc: Option<String>,
+    /// The Freedesktop-compliant name of an icon. this can be used by the visualization to indicate
+    /// that the item is in RequestingAttention state.
     pub attention_icon_name: Option<String>,
-    pub attention_accessible_desc: Option<String>,
     /// It's a name that describes the application, it can be more descriptive than Id.
     pub title: Option<String>,
     pub icon_theme_path: Option<String>,
+    /// DBus path to an object which should implement the com.canonical.dbusmenu interface
+    /// This can be used to retrieve the wigdet menu via gtk/qt libdbusmenu implementation
+    /// Instead of building it from the raw data
     pub menu: Option<String>,
-    pub x_ayatana_label: Option<String>,
-    pub x_ayatana_label_guide: Option<String>,
-    pub x_ayatana_ordering_index: Option<u32>,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub enum Status {
+    /// The item doesn't convey important information to the user, it can be considered an
+    /// "idle" status and is likely that visualizations will chose to hide it.
     Passive,
+    /// The item is active, is more important that the item will be shown in some way to the user.
     Active,
 }
 
@@ -100,22 +112,20 @@ impl TryFrom<DBusProperties> for StatusNotifierItem {
     type Error = anyhow::Error;
     fn try_from(props: HashMap<String, OwnedValue>) -> anyhow::Result<Self> {
         let props = PropsWrapper(props);
-
-        Ok(StatusNotifierItem {
-            id: props.get_string("Id"),
-            title: props.get_string("Title"),
-            category: props.get_category()?,
-            icon_name: props.get_string("IconName"),
-            status: props.get_status()?,
-            icon_accessible_desc: props.get_string("IconAccessibleDesc"),
-            attention_icon_name: props.get_string("AttentionIconName"),
-            attention_accessible_desc: props.get_string("AttentionAccessibleDesc"),
-            icon_theme_path: props.get_string("IconThemePath"),
-            menu: props.get_object_path("Menu"),
-            x_ayatana_label: props.get_string("XAyatanaLabel"),
-            x_ayatana_label_guide: props.get_string("XAyatanaLabelGuide"),
-            x_ayatana_ordering_index: props.get_u32("XAyatanaOrderingIndex"),
-        })
+        match props.get_string("Id") {
+            None => Err(anyhow!("StatusNotifier item should have an id")),
+            Some(id) => Ok(StatusNotifierItem {
+                id,
+                title: props.get_string("Title"),
+                category: props.get_category()?,
+                icon_name: props.get_string("IconName"),
+                status: props.get_status()?,
+                icon_accessible_desc: props.get_string("IconAccessibleDesc"),
+                attention_icon_name: props.get_string("AttentionIconName"),
+                icon_theme_path: props.get_string("IconThemePath"),
+                menu: props.get_object_path("Menu"),
+            }),
+        }
     }
 }
 
@@ -146,11 +156,5 @@ impl PropsWrapper {
             .get("Status")
             .and_then(|value| value.downcast_ref::<str>().map(Status::from_str))
             .unwrap_or(Err(anyhow!("'Status' not found for item")))
-    }
-
-    fn get_u32(&self, key: &str) -> Option<u32> {
-        self.0
-            .get(key)
-            .and_then(|value| value.downcast_ref::<u32>().copied())
     }
 }

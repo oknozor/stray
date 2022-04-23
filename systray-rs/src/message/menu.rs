@@ -6,6 +6,7 @@ use zbus::zvariant::{OwnedValue, Structure, Value};
 
 use crate::dbus::dbusmenu_proxy::MenuLayout;
 
+/// A menu that should be displayed when clicking corresponding tray icon
 #[derive(Debug, Serialize)]
 pub struct TrayMenu {
     pub id: u32,
@@ -62,6 +63,8 @@ impl Default for MenuItem {
     }
 }
 
+/// How the menuitem feels the information it's displaying to the
+/// user should be presented.
 #[derive(Debug, Serialize, Copy, Clone, Eq, PartialEq)]
 pub enum ToggleType {
     /// Item is an independent togglable item
@@ -73,6 +76,7 @@ pub enum ToggleType {
     CannotBeToggled,
 }
 
+/// Either a standard menu item or a separator
 #[derive(Debug, Serialize, Copy, Clone, Eq, PartialEq)]
 pub enum MenuType {
     ///  a separator
