@@ -1,10 +1,12 @@
 use anyhow::anyhow;
 use serde::Serialize;
-use systray_rs::message::menu::{MenuItem, MenuType, TrayMenu};
-use systray_rs::message::tray::StatusNotifierItem;
+
+use stray::message::menu::{MenuItem, MenuType, TrayMenu};
+use stray::message::tray::StatusNotifierItem;
 
 #[derive(Serialize)]
 pub struct EwwTrayItem {
+    pub id: String,
     pub icon_path: String,
     pub menu: Option<String>,
 }
@@ -62,7 +64,8 @@ impl TryFrom<&(StatusNotifierItem, Option<TrayMenu>)> for EwwTrayItem {
                     .collect::<Vec<String>>()
                     .join(" ")
             });
-            Ok(Self { icon_path, menu })
+
+            Ok(Self { id: item.id.clone(), icon_path, menu })
         } else {
             Err(anyhow!("No icon found"))
         }
@@ -72,22 +75,25 @@ impl TryFrom<&(StatusNotifierItem, Option<TrayMenu>)> for EwwTrayItem {
 const FALL_BACK_THEME: &str = "hicolor";
 
 fn try_fetch_icon(name: &str, additional_search_path: Option<&str>) -> anyhow::Result<String> {
-    if let Some(path) = additional_search_path {
-        return Ok(format!("{path}/{name}.png"));
-    };
-
-    let theme = linicon::get_system_theme().unwrap();
-    linicon::lookup_icon(name)
-        .from_theme(theme)
-        .use_fallback_themes(true)
-        .next()
-        .and_then(|icon| icon.ok())
-        .or_else(|| {
+    match additional_search_path {
+        Some(path) if !path.is_empty() => {
+            return Ok(format!("{path}/{name}.png"));
+        }
+        _ => {
+            let theme = linicon::get_system_theme().unwrap();
             linicon::lookup_icon(name)
-                .from_theme(FALL_BACK_THEME)
+                .from_theme(theme)
+                .use_fallback_themes(true)
                 .next()
                 .and_then(|icon| icon.ok())
-        })
-        .map(|icon| icon.path.to_str().unwrap().to_string())
-        .ok_or_else(|| anyhow!("Icon not found"))
+                .or_else(|| {
+                    linicon::lookup_icon(name)
+                        .from_theme(FALL_BACK_THEME)
+                        .next()
+                        .and_then(|icon| icon.ok())
+                })
+                .map(|icon| icon.path.to_str().unwrap().to_string())
+                .ok_or_else(|| anyhow!("Icon not found"))
+        }
+    }
 }

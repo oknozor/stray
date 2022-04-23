@@ -182,6 +182,7 @@ impl TryFrom<&OwnedValue> for MenuItem {
         let structure = value
             .downcast_ref::<Structure>()
             .expect("Expected a layout");
+
         let mut fields = structure.fields().iter();
         let mut menu = MenuItem::default();
 
@@ -193,6 +194,7 @@ impl TryFrom<&OwnedValue> for MenuItem {
             menu.children_display = dict
                 .get::<str, str>("children_display")?
                 .map(str::to_string);
+
             // see: https://github.com/AyatanaIndicators/libdbusmenu/blob/4d03141aea4e2ad0f04ab73cf1d4f4bcc4a19f6c/libdbusmenu-glib/dbus-menu.xml#L75
             menu.label = dict
                 .get::<str, str>("label")?
@@ -204,13 +206,15 @@ impl TryFrom<&OwnedValue> for MenuItem {
             }
 
             if let Some(visible) = dict.get::<str, bool>("visible")? {
-                menu.visible = *visible
+                menu.visible = *visible;
             }
 
             menu.icon_name = dict.get::<str, str>("icon-name")?.map(str::to_string);
 
             if let Some(disposition) = dict
-                .get::<str, str>("shortcut")?
+                .get::<str, str>("disposition")
+                .ok()
+                .flatten()
                 .map(Disposition::from_str)
                 .map(Result::ok)
                 .flatten()
@@ -219,23 +223,30 @@ impl TryFrom<&OwnedValue> for MenuItem {
             }
 
             menu.toggle_state = dict
-                .get::<str, bool>("toggle-state")?
+                .get::<str, bool>("toggle-state")
+                .ok()
+                .flatten()
                 .map(|value| ToggleState::from(*value))
                 .unwrap_or(ToggleState::Indeterminate);
 
             menu.toggle_type = dict
-                .get::<str, str>("toggle-type")?
+                .get::<str, str>("toggle-type")
+                .ok()
+                .flatten()
                 .map(ToggleType::from_str)
                 .map(Result::ok)
                 .flatten()
                 .unwrap_or(ToggleType::CannotBeToggled);
 
             menu.menu_type = dict
-                .get::<str, str>("type")?
+                .get::<str, str>("type")
+                .ok()
+                .flatten()
                 .map(MenuType::from_str)
                 .map(Result::ok)
                 .flatten()
                 .unwrap_or(MenuType::Standard);
+
         };
 
         if let Some(Value::Array(array)) = fields.next() {

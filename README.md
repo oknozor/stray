@@ -11,7 +11,7 @@ implementation for [eww](https://github.com/elkowar/eww)
 
 ```shell
 git clone https://github.com/oknozor/eww-tray
-cd systray-rs/eww-tray
+cd stray/eww-tray
 cargo install --path .
 ```
 

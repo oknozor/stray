@@ -1,3 +1,12 @@
+//! # Stray
+//!
+//! Stray is a minimal [SystemNotifierWatcher](https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierWatcher/)
+//! implementation which goal is to provide a minimalistic API to access tray icons and menu.
+//!
+//!
+//!
+//!
+//!
 use std::pin::Pin;
 use std::task::{Context, Poll};
 

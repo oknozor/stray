@@ -19,9 +19,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.56"
+version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4361135be9122e0870de935d7c439aef945b9f9ddd4199a553b5270b49c82a27"
+checksum = "08f9b8508dccb7687a1d6c4ce66b2b0ecef467c94667de27d8d7fe1f8d2a9cdc"
 
 [[package]]
 name = "async-broadcast"
@@ -324,7 +324,7 @@ dependencies = [
  "linicon",
  "serde",
  "serde_json",
- "systray-rs",
+ "stray",
  "tera",
  "tokio",
 ]
@@ -1082,6 +1082,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "stray"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "event-listener",
+ "serde",
+ "tokio",
+ "tokio-stream",
+ "zbus",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1090,20 +1103,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
-]
-
-[[package]]
-name = "systray-rs"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "byteorder",
- "event-listener",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "zbus",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 [workspace]
 
 members = [
-    "systray-rs",
-    "eww-tray"
+    "stray",
+    "eww-tray",
 ]

@@ -1,13 +1,13 @@
-use serde::Serialize;
 use std::collections::HashMap;
 
+use serde::Serialize;
 use tera::Tera;
 
-use systray_rs::message::menu::TrayMenu;
-use systray_rs::message::tray::StatusNotifierItem;
-use systray_rs::message::Message;
-use systray_rs::tokio_stream::StreamExt;
-use systray_rs::SystemTray;
+use stray::message::menu::TrayMenu;
+use stray::message::Message;
+use stray::message::tray::StatusNotifierItem;
+use stray::SystemTray;
+use stray::tokio_stream::StreamExt;
 
 use crate::icon::EwwTrayItem;
 
@@ -21,8 +21,8 @@ struct EwwTray {
 
 impl EwwTray {
     fn render<T>(&self, value: T)
-    where
-        T: Serialize,
+        where
+            T: Serialize,
     {
         let mut context = tera::Context::new();
         context.insert("tray_icons", &value);
@@ -41,20 +41,22 @@ impl EwwTray {
                     self.items.remove(&id);
                 }
             }
+
             let tray_icons: Vec<EwwTrayItem> = self
                 .items
                 .values()
                 .filter_map(|item| EwwTrayItem::try_from(item).ok())
                 .collect();
-            let menus = tray_icons
-                .iter()
-                .filter_map(|item| item.menu.as_ref())
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>()
-                .join(" ");
 
+            let mut menus = HashMap::new();
+            for icon in &tray_icons {
+                if let Some(menu) = &icon.menu {
+                    menus.insert(icon.id.clone(), menu.clone());
+                }
+            }
+            let menus = serde_json::to_string(&menus).unwrap();
             let update = format!("tray_menu_content={}", &menus);
-            println!("{}", update);
+
             tokio::process::Command::new("eww")
                 .args(&["update", &update])
                 .output()
@@ -79,8 +81,8 @@ async fn main() -> anyhow::Result<()> {
         tera,
         items: HashMap::new(),
     }
-    .run()
-    .await;
+        .run()
+        .await;
 
     Ok(())
 }
