@@ -1,7 +1,8 @@
 use crate::{InterfaceName, MenuLayout, Message, NotifierAddress, StatusNotifierItem, Watcher};
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use zbus::{Connection, ConnectionBuilder};
+
 pub(super) mod dbusmenu_proxy;
 pub(super) mod notifier_item_proxy;
 pub(super) mod notifier_watcher_proxy;
@@ -13,8 +14,9 @@ use notifier_item_proxy::StatusNotifierItemProxy;
 use notifier_watcher_proxy::StatusNotifierWatcherProxy;
 use tokio_stream::StreamExt;
 use zbus::fdo::PropertiesProxy;
+use crate::message::Command;
 
-pub async fn start_notifier_watcher(sender: Sender<Message>) -> anyhow::Result<()> {
+pub async fn start_notifier_watcher(sender: Sender<Message>, mut ui_rx: Receiver<Command>) -> anyhow::Result<()> {
     let watcher = Watcher::new(sender.clone());
     let done_listener = watcher.event.listen();
     let conn = ConnectionBuilder::session()?
@@ -33,10 +35,31 @@ pub async fn start_notifier_watcher(sender: Sender<Message>) -> anyhow::Result<(
         })
     };
 
+    let handle_ui_event = tokio::spawn(async move {
+        while let Some(event) = ui_rx.recv().await {
+            match event {
+                Command::MenuItemClicked { id, menu_path, notifier_address } => {
+                    println!("ui event, id = {id}, address = {notifier_address}, menu_path = {menu_path}");
+                    let dbus_menu_proxy = DBusMenuProxy::builder(&conn)
+                        .destination(notifier_address).unwrap()
+                        .path(menu_path).unwrap()
+                        .build()
+                        .await.unwrap();
+
+                    dbus_menu_proxy
+                        .event(id, "clicked", &zbus::zvariant::Value::I32(32), chrono::offset::Local::now().timestamp_subsec_micros())
+                        .await
+                        .unwrap();
+                }
+            }
+        }
+    });
+
     let _ = tokio::join!(
         status_notifier_removed_handle,
         status_notifier_watcher_listener,
         status_notifier_host_handle,
+        handle_ui_event
     );
 
     Ok(())
@@ -146,7 +169,7 @@ async fn watch_notifier_props(
             address_parts.destination.clone(),
             connection.clone(),
         )
-        .await?;
+            .await?;
 
         // Connect to the notifier proxy to watch for properties change
         let notifier_item_proxy = StatusNotifierItemProxy::builder(&connection)
@@ -165,7 +188,7 @@ async fn watch_notifier_props(
                 address_parts.destination.clone(),
                 connection.clone(),
             )
-            .await?;
+                .await?;
         }
 
         Result::<(), anyhow::Error>::Ok(())

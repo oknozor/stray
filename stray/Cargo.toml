@@ -13,6 +13,7 @@ zbus = { version = "2", default-features = false, features = ["tokio", "gvariant
 anyhow = "1.0.56"
 serde = "1.0.136"
 byteorder = "1.4.3"
+chrono = "0.4.19"
 
 [[example]]
 path = "examples/simple.rs"

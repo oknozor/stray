@@ -21,3 +21,12 @@ pub enum Message {
         address: String,
     },
 }
+
+#[derive(Debug)]
+pub enum Command {
+    MenuItemClicked {
+        id: i32,
+        menu_path: String,
+        notifier_address: String,
+    }
+}

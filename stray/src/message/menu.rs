@@ -8,14 +8,14 @@ use crate::dbus::dbusmenu_proxy::MenuLayout;
 
 /// A menu that should be displayed when clicking corresponding tray icon
 #[derive(Debug, Serialize)]
-pub struct TrayMenu {
+pub struct  TrayMenu {
     pub id: u32,
     pub submenus: Vec<MenuItem>,
 }
 
 /// Represent an entry in a menu as described in [com.canonical.dbusmenu](https://github.com/AyatanaIndicators/libdbusmenu/blob/4d03141aea4e2ad0f04ab73cf1d4f4bcc4a19f6c/libdbusmenu-glib/dbus-menu.xml#L75)
 /// This implementation currently support a sub section of the spec, if you feel something is missing don't hesitate to submit an issue.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct MenuItem {
     /// Unique numeric id
     pub id: i32,
@@ -246,7 +246,6 @@ impl TryFrom<&OwnedValue> for MenuItem {
                 .map(Result::ok)
                 .flatten()
                 .unwrap_or(MenuType::Standard);
-
         };
 
         if let Some(Value::Array(array)) = fields.next() {

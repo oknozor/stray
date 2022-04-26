@@ -19,7 +19,7 @@ use tokio_stream::Stream;
 use zbus::names::InterfaceName;
 
 use crate::dbus::dbusmenu_proxy::MenuLayout;
-use crate::message::{tray::StatusNotifierItem, Message};
+use crate::message::{tray::StatusNotifierItem, Message, Command};
 use dbus::notifier_watcher_service::Watcher;
 
 mod dbus;
@@ -33,11 +33,12 @@ impl SystemTray {
     /// Creates a new system stray and register a [StatusNotifierWatcher] and [StatusNotifierHost] on dbus.
     /// Once created you can receive [`StatusNotifierItem`]. Once created you can start to poll message
     /// using the [`Stream`] implementation.
-    pub async fn new() -> SystemTray {
+    pub async fn new(ui_rx: Receiver<Command>) -> SystemTray {
         let (tx, rx) = channel(5);
+        let tx_clone = tx.clone();
 
         tokio::spawn(async {
-            dbus::start_notifier_watcher(tx)
+            dbus::start_notifier_watcher(tx_clone, ui_rx)
                 .await
                 .expect("Error occurred in notifier watcher task")
         });

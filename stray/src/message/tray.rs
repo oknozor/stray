@@ -17,7 +17,7 @@ struct PropsWrapper(DBusProperties);
 /// Note that this implementation is not feature complete. It only contains the minimal data
 /// needed to build a system tray and display tray menus. If you feel something important is
 /// should be added please reach out.
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 pub struct StatusNotifierItem {
     /// It's a name that should be unique for this application and consistent between sessions,
     /// such as the application name itself.
@@ -46,7 +46,7 @@ pub struct StatusNotifierItem {
     pub menu: Option<String>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub enum Status {
     /// The item doesn't convey important information to the user, it can be considered an
@@ -72,7 +72,7 @@ impl FromStr for Status {
 }
 
 /// Describes the category of this item.
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub enum Category {
     /// The item describes the status of a generic application, for instance the current state

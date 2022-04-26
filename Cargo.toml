@@ -3,4 +3,5 @@
 members = [
     "stray",
     "eww-tray",
+    "gtk-tray"
 ]

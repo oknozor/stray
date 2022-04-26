@@ -1,5 +1,5 @@
+use stray::{message::Message, SystemTray};
 use tokio_stream::StreamExt;
-use stray::{SystemTray, message::Message};
 
 #[tokio::main]
 async fn main() {
@@ -14,5 +14,5 @@ async fn main() {
                 println!("Got Remove command  id={id}");
             }
         }
-    };
+    }
 }

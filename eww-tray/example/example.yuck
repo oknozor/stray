@@ -1,0 +1,71 @@
+(deflisten json_tray :initial '{"icons" : []}' "eww-tray")
+(defvar current_menu "")
+(defvar reveal 0)
+
+(defwindow tray_menu
+  :monitor 0
+  :geometry (geometry :x "20px"
+    :y "5%"
+    :x "-2%"
+    :anchor "top right"
+    :width "100px"
+    :height "60px"
+  )
+  (menu)
+)
+
+(defwidget menu []
+  (box :class "tray-menu"
+    (eventbox :onhoverlost "eww close tray_menu"
+      (box
+        :halign "center"
+        :orientation "v"
+        :vexpand true
+        :valign "start"
+        (for entry in {json_tray.menus["${current_menu}"]}
+          (menu_row :entry {entry} :parent_id 0))
+      )
+    )
+  )
+)
+
+(defwidget menu_row [entry parent_id]
+  (eventbox
+    :onhover "eww update reveal=${entry.id}"
+    :onhoverlost "eww update reveal=${parent_id}"
+    (box
+      :halign "fill"
+      :valign "start"
+      :vexpand true
+      :orientation "v"
+      :spacing 3
+      :space-evenly false
+      :height "20"
+      (button
+        :class {entry.type == "Separator" ? "separator" : "tray-menu-row"}
+        (label :text {entry.type != "Separator" ? entry.label : "_____"})
+      )
+      (revealer
+        :reveal true; {reveal == entry.id}
+        (for submenu in {entry.submenu}
+          (menu_row :entry {submenu} :parent_id {entry.id})
+        )
+      )
+    )
+  )
+)
+
+
+(defwidget tray_icons []
+  (box
+    :spacing 3
+    :orientation 'h'
+    :space-evenly false
+    (for icon in {json_tray.icons}
+      (button
+        :onclick "eww update current_menu=${icon.id} && eww open tray_menu"
+        (image :path "${icon.icon_path}" :image-width 24 :image-height 24)
+      )
+    )
+  )
+)

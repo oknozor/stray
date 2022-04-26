@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use anyhow::anyhow;
 use serde::Serialize;
+use std::collections::HashMap;
 
 use stray::message::menu::{MenuItem, MenuType, TrayMenu};
 use stray::message::tray::StatusNotifierItem;
@@ -19,12 +19,14 @@ pub struct EwwTrayItem {
 
 #[derive(Serialize, Debug)]
 pub struct EwwTrayMenu {
+    pub id: u32,
     pub submenu: Vec<EwwTraySubMenu>,
 }
 
 impl From<&TrayMenu> for EwwTrayMenu {
     fn from(menu: &TrayMenu) -> Self {
         Self {
+            id: menu.id,
             submenu: menu.submenus.iter().map(EwwTraySubMenu::from).collect(),
         }
     }
@@ -32,6 +34,7 @@ impl From<&TrayMenu> for EwwTrayMenu {
 
 #[derive(Serialize, Debug)]
 pub struct EwwTraySubMenu {
+    pub id: i32,
     pub label: String,
     pub r#type: MenuType,
     pub submenu: Vec<EwwTraySubMenu>,
@@ -40,6 +43,7 @@ pub struct EwwTraySubMenu {
 impl From<&MenuItem> for EwwTraySubMenu {
     fn from(menu: &MenuItem) -> Self {
         Self {
+            id: menu.id,
             label: menu.label.clone(),
             r#type: menu.menu_type,
             submenu: menu.submenu.iter().map(EwwTraySubMenu::from).collect(),
@@ -59,7 +63,10 @@ impl TryFrom<&StatusNotifierItem> for EwwTrayItem {
             };
 
             let icon_path = try_fetch_icon(icon_name, icon_path)?;
-            Ok(Self { id: item.id.clone(), icon_path })
+            Ok(Self {
+                id: item.id.clone(),
+                icon_path,
+            })
         } else {
             Err(anyhow!("No icon found"))
         }
