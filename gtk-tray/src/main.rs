@@ -26,7 +26,12 @@ pub struct StatusNotifierWrapper {
 static STATE: Lazy<Mutex<HashMap<String, NotifierItem>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 impl StatusNotifierWrapper {
-    fn to_menu_item(self, sender: Sender<Command>, notifier_address: String, menu_path: String) -> MenuItem {
+    fn to_menu_item(
+        self,
+        sender: Sender<Command>,
+        notifier_address: String,
+        menu_path: String,
+    ) -> MenuItem {
         let item: Box<dyn AsRef<MenuItem>> = match self.menu.menu_type {
             MenuType::Separator => Box::new(SeparatorMenuItem::new()),
             MenuType::Standard => Box::new(MenuItem::with_label(self.menu.label.as_str())),
@@ -41,11 +46,12 @@ impl StatusNotifierWrapper {
 
             item.connect_activate(move |_item| {
                 println!("UI Activate");
-                sender.try_send(Command::MenuItemClicked {
-                    id: self.menu.id,
-                    menu_path: menu_path.clone(),
-                    notifier_address: notifier_address.clone(),
-                })
+                sender
+                    .try_send(Command::MenuItemClicked {
+                        id: self.menu.id,
+                        menu_path: menu_path.clone(),
+                        notifier_address: notifier_address.clone(),
+                    })
                     .unwrap();
             });
         };
@@ -53,10 +59,12 @@ impl StatusNotifierWrapper {
         let submenu = Menu::new();
         if !self.menu.submenu.is_empty() {
             for submenu_item in self.menu.submenu.iter().cloned() {
-                let submenu_item = StatusNotifierWrapper {
-                    menu: submenu_item,
-                };
-                let submenu_item = submenu_item.to_menu_item(sender.clone(), notifier_address.clone(), menu_path.clone());
+                let submenu_item = StatusNotifierWrapper { menu: submenu_item };
+                let submenu_item = submenu_item.to_menu_item(
+                    sender.clone(),
+                    notifier_address.clone(),
+                    menu_path.clone(),
+                );
                 submenu.append(&submenu_item);
             }
 
@@ -81,7 +89,6 @@ impl NotifierItem {
         })
     }
 }
-
 
 fn main() {
     let application = gtk::Application::new(
@@ -112,7 +119,11 @@ fn build_ui(application: &gtk::Application) {
     window.show_all();
 }
 
-fn spawn_local_handler(v_box: MenuBar, mut receiver: mpsc::Receiver<Message>, cmd_tx: Sender<Command>) {
+fn spawn_local_handler(
+    v_box: MenuBar,
+    mut receiver: mpsc::Receiver<Message>,
+    cmd_tx: Sender<Command>,
+) {
     let main_context = glib::MainContext::default();
     let future = async move {
         while let Some(item) = receiver.recv().await {
@@ -149,7 +160,8 @@ fn spawn_local_handler(v_box: MenuBar, mut receiver: mpsc::Receiver<Message>, cm
                                 menu: submenu.to_owned(),
                             })
                             .map(|item| {
-                                let menu_path = notifier_item.item.menu.as_ref().unwrap().to_string();
+                                let menu_path =
+                                    notifier_item.item.menu.as_ref().unwrap().to_string();
                                 let address = address.to_string();
                                 item.to_menu_item(cmd_tx.clone(), address, menu_path)
                             })

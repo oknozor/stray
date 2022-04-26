@@ -28,5 +28,5 @@ pub enum Command {
         id: i32,
         menu_path: String,
         notifier_address: String,
-    }
+    },
 }

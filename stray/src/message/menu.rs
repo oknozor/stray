@@ -8,7 +8,7 @@ use crate::dbus::dbusmenu_proxy::MenuLayout;
 
 /// A menu that should be displayed when clicking corresponding tray icon
 #[derive(Debug, Serialize)]
-pub struct  TrayMenu {
+pub struct TrayMenu {
     pub id: u32,
     pub submenus: Vec<MenuItem>,
 }

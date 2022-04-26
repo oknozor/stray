@@ -19,7 +19,7 @@ use tokio_stream::Stream;
 use zbus::names::InterfaceName;
 
 use crate::dbus::dbusmenu_proxy::MenuLayout;
-use crate::message::{tray::StatusNotifierItem, Message, Command};
+use crate::message::{tray::StatusNotifierItem, Command, Message};
 use dbus::notifier_watcher_service::Watcher;
 
 mod dbus;

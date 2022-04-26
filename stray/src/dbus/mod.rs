@@ -9,14 +9,17 @@ pub(super) mod notifier_watcher_proxy;
 pub(super) mod notifier_watcher_service;
 
 use crate::message::menu::TrayMenu;
+use crate::message::Command;
 use dbusmenu_proxy::DBusMenuProxy;
 use notifier_item_proxy::StatusNotifierItemProxy;
 use notifier_watcher_proxy::StatusNotifierWatcherProxy;
 use tokio_stream::StreamExt;
 use zbus::fdo::PropertiesProxy;
-use crate::message::Command;
 
-pub async fn start_notifier_watcher(sender: Sender<Message>, mut ui_rx: Receiver<Command>) -> anyhow::Result<()> {
+pub async fn start_notifier_watcher(
+    sender: Sender<Message>,
+    mut ui_rx: Receiver<Command>,
+) -> anyhow::Result<()> {
     let watcher = Watcher::new(sender.clone());
     let done_listener = watcher.event.listen();
     let conn = ConnectionBuilder::session()?
@@ -38,16 +41,28 @@ pub async fn start_notifier_watcher(sender: Sender<Message>, mut ui_rx: Receiver
     let handle_ui_event = tokio::spawn(async move {
         while let Some(event) = ui_rx.recv().await {
             match event {
-                Command::MenuItemClicked { id, menu_path, notifier_address } => {
+                Command::MenuItemClicked {
+                    id,
+                    menu_path,
+                    notifier_address,
+                } => {
                     println!("ui event, id = {id}, address = {notifier_address}, menu_path = {menu_path}");
                     let dbus_menu_proxy = DBusMenuProxy::builder(&conn)
-                        .destination(notifier_address).unwrap()
-                        .path(menu_path).unwrap()
+                        .destination(notifier_address)
+                        .unwrap()
+                        .path(menu_path)
+                        .unwrap()
                         .build()
-                        .await.unwrap();
+                        .await
+                        .unwrap();
 
                     dbus_menu_proxy
-                        .event(id, "clicked", &zbus::zvariant::Value::I32(32), chrono::offset::Local::now().timestamp_subsec_micros())
+                        .event(
+                            id,
+                            "clicked",
+                            &zbus::zvariant::Value::I32(32),
+                            chrono::offset::Local::now().timestamp_subsec_micros(),
+                        )
                         .await
                         .unwrap();
                 }
@@ -169,7 +184,7 @@ async fn watch_notifier_props(
             address_parts.destination.clone(),
             connection.clone(),
         )
-            .await?;
+        .await?;
 
         // Connect to the notifier proxy to watch for properties change
         let notifier_item_proxy = StatusNotifierItemProxy::builder(&connection)
@@ -188,7 +203,7 @@ async fn watch_notifier_props(
                 address_parts.destination.clone(),
                 connection.clone(),
             )
-                .await?;
+            .await?;
         }
 
         Result::<(), anyhow::Error>::Ok(())
