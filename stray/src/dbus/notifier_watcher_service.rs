@@ -6,7 +6,7 @@ use zbus::dbus_interface;
 use zbus::Result;
 use zbus::{MessageHeader, SignalContext};
 
-use crate::Message;
+use crate::NotifierItemMessage;
 
 pub struct Watcher {
     pub status_notifier_hosts: HashSet<String>,
@@ -14,11 +14,11 @@ pub struct Watcher {
     pub protocol_version: i32,
     pub is_status_notifier_host_registered: bool,
     pub event: Event,
-    pub sender: Sender<Message>,
+    pub sender: Sender<NotifierItemMessage>,
 }
 
 impl Watcher {
-    pub(crate) fn new(sender: Sender<Message>) -> Self {
+    pub(crate) fn new(sender: Sender<NotifierItemMessage>) -> Self {
         Watcher {
             registered_status_notifier_items: HashSet::new(),
             protocol_version: 0,
@@ -42,7 +42,7 @@ impl Watcher {
             let removed = self.registered_status_notifier_items.remove(&notifier);
             if removed {
                 self.sender
-                    .send(Message::Remove {
+                    .send(NotifierItemMessage::Remove {
                         address: notifier_address.to_string(),
                     })
                     .await

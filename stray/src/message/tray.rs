@@ -5,13 +5,13 @@ use anyhow::anyhow;
 use serde::Serialize;
 use zbus::zvariant::{ObjectPath, OwnedValue};
 
-type DBusProperties = HashMap<std::string::String, OwnedValue>;
+type DBusProperties = HashMap<String, OwnedValue>;
 
 struct PropsWrapper(DBusProperties);
 
 /// An Icon used for reporting the status of an application to the user or provide a quick access
 /// to common actions performed by that application. You can read the full specification at
-/// [freedesktop.org/wiki/Specifications/StatusNotifierItem][https://freedesktop.org/wiki/Specifications/StatusNotifierItem]
+/// [freedesktop.org/wiki/Specifications/StatusNotifierItem](https://freedesktop.org/wiki/Specifications/StatusNotifierItem)
 /// or take a look at [the reference implementation](https://github.com/AyatanaIndicators/libayatana-appindicator/blob/c43a76e643ab930725d20d306bc3ca5e7874eebe/src/notification-item.xml)
 ///
 /// Note that this implementation is not feature complete. It only contains the minimal data

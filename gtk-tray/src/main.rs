@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::thread;
 use stray::message::menu::{MenuType, TrayMenu};
 use stray::message::tray::StatusNotifierItem;
-use stray::message::{Command, Message};
+use stray::message::{NotifierItemCommand, NotifierItemMessage};
 use stray::tokio_stream::StreamExt;
 use stray::SystemTray;
 use tokio::runtime::Runtime;
@@ -28,7 +28,7 @@ static STATE: Lazy<Mutex<HashMap<String, NotifierItem>>> = Lazy::new(|| Mutex::n
 impl StatusNotifierWrapper {
     fn to_menu_item(
         self,
-        sender: Sender<Command>,
+        sender: Sender<NotifierItemCommand>,
         notifier_address: String,
         menu_path: String,
     ) -> MenuItem {
@@ -45,10 +45,9 @@ impl StatusNotifierWrapper {
             let menu_path = menu_path.clone();
 
             item.connect_activate(move |_item| {
-                println!("UI Activate");
                 sender
-                    .try_send(Command::MenuItemClicked {
-                        id: self.menu.id,
+                    .try_send(NotifierItemCommand::MenuItemClicked {
+                        submenu_id: self.menu.id,
                         menu_path: menu_path.clone(),
                         notifier_address: notifier_address.clone(),
                     })
@@ -110,7 +109,6 @@ fn build_ui(application: &gtk::Application) {
 
     let menu_bar = MenuBar::new();
     window.add(&menu_bar);
-
     let (sender, receiver) = mpsc::channel(32);
     let (cmd_tx, cmd_rx) = mpsc::channel(32);
 
@@ -121,8 +119,8 @@ fn build_ui(application: &gtk::Application) {
 
 fn spawn_local_handler(
     v_box: MenuBar,
-    mut receiver: mpsc::Receiver<Message>,
-    cmd_tx: Sender<Command>,
+    mut receiver: mpsc::Receiver<NotifierItemMessage>,
+    cmd_tx: Sender<NotifierItemCommand>,
 ) {
     let main_context = glib::MainContext::default();
     let future = async move {
@@ -130,10 +128,14 @@ fn spawn_local_handler(
             let mut state = STATE.lock().unwrap();
 
             match item {
-                Message::Update { id, item, menu } => {
+                NotifierItemMessage::Update {
+                    address: id,
+                    item,
+                    menu,
+                } => {
                     state.insert(id, NotifierItem { item, menu });
                 }
-                Message::Remove { address } => {
+                NotifierItemMessage::Remove { address } => {
                     state.remove(&address);
                 }
             }
@@ -182,7 +184,10 @@ fn spawn_local_handler(
     main_context.spawn_local(future);
 }
 
-fn start_communication_thread(sender: mpsc::Sender<Message>, cmd_rx: mpsc::Receiver<Command>) {
+fn start_communication_thread(
+    sender: mpsc::Sender<NotifierItemMessage>,
+    cmd_rx: mpsc::Receiver<NotifierItemCommand>,
+) {
     thread::spawn(move || {
         let runtime = Runtime::new().expect("Failed to create tokio RT");
 

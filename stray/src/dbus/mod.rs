@@ -1,4 +1,6 @@
-use crate::{InterfaceName, MenuLayout, Message, NotifierAddress, StatusNotifierItem, Watcher};
+use crate::{
+    InterfaceName, MenuLayout, NotifierAddress, NotifierItemMessage, StatusNotifierItem, Watcher,
+};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use zbus::{Connection, ConnectionBuilder};
@@ -9,7 +11,7 @@ pub(super) mod notifier_watcher_proxy;
 pub(super) mod notifier_watcher_service;
 
 use crate::message::menu::TrayMenu;
-use crate::message::Command;
+use crate::message::NotifierItemCommand;
 use dbusmenu_proxy::DBusMenuProxy;
 use notifier_item_proxy::StatusNotifierItemProxy;
 use notifier_watcher_proxy::StatusNotifierWatcherProxy;
@@ -17,8 +19,8 @@ use tokio_stream::StreamExt;
 use zbus::fdo::PropertiesProxy;
 
 pub async fn start_notifier_watcher(
-    sender: Sender<Message>,
-    mut ui_rx: Receiver<Command>,
+    sender: Sender<NotifierItemMessage>,
+    mut ui_rx: Receiver<NotifierItemCommand>,
 ) -> anyhow::Result<()> {
     let watcher = Watcher::new(sender.clone());
     let done_listener = watcher.event.listen();
@@ -41,12 +43,11 @@ pub async fn start_notifier_watcher(
     let handle_ui_event = tokio::spawn(async move {
         while let Some(event) = ui_rx.recv().await {
             match event {
-                Command::MenuItemClicked {
-                    id,
+                NotifierItemCommand::MenuItemClicked {
+                    submenu_id: id,
                     menu_path,
                     notifier_address,
                 } => {
-                    println!("ui event, id = {id}, address = {notifier_address}, menu_path = {menu_path}");
                     let dbus_menu_proxy = DBusMenuProxy::builder(&conn)
                         .destination(notifier_address)
                         .unwrap()
@@ -115,7 +116,7 @@ fn status_notifier_removed_handle(connection: Connection) -> JoinHandle<()> {
 // 2. Query already registered StatusNotifier, call GetAll to update the UI  and  listen for property changes via Dbus.PropertiesChanged
 // 3. subscribe to StatusNotifierWatcher.RegisteredStatusNotifierItems
 // 4. Whenever a new notifier is registered repeat steps 2
-async fn status_notifier_host_handle(sender: Sender<Message>) -> anyhow::Result<()> {
+async fn status_notifier_host_handle(sender: Sender<NotifierItemMessage>) -> anyhow::Result<()> {
     let connection = Connection::session().await?;
     let pid = std::process::id();
     let host = format!("org.freedesktop.StatusNotifierHost-{pid}-MyNotifierHost");
@@ -167,7 +168,7 @@ async fn status_notifier_host_handle(sender: Sender<Message>) -> anyhow::Result<
 async fn watch_notifier_props(
     address_parts: NotifierAddress,
     connection: Connection,
-    sender: Sender<Message>,
+    sender: Sender<NotifierItemMessage>,
 ) -> anyhow::Result<()> {
     tokio::spawn(async move {
         // Connect to DBus.Properties
@@ -214,7 +215,7 @@ async fn watch_notifier_props(
 
 // Fetch Properties from DBus proxy and send an update to the UI channel
 async fn fetch_properties_and_update(
-    sender: Sender<Message>,
+    sender: Sender<NotifierItemMessage>,
     dbus_properties_proxy: &PropertiesProxy<'_>,
     item_address: String,
     connection: Connection,
@@ -241,8 +242,8 @@ async fn fetch_properties_and_update(
         };
 
         sender
-            .send(Message::Update {
-                id: item_address.to_string(),
+            .send(NotifierItemMessage::Update {
+                address: item_address.to_string(),
                 item,
                 menu,
             })
