@@ -7,7 +7,7 @@ use zbus::zvariant::{OwnedValue, Structure, Value};
 use crate::dbus::dbusmenu_proxy::MenuLayout;
 
 /// A menu that should be displayed when clicking corresponding tray icon
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct TrayMenu {
     /// The unique identifier of the menu
     pub id: u32,

@@ -8,7 +8,7 @@ pub mod menu;
 pub mod tray;
 
 /// Messages send via by [`crate::SystemTray`]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub enum NotifierItemMessage {
     /// Notify the state of an item along with its menu
     Update {

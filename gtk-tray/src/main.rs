@@ -8,11 +8,9 @@ use std::thread;
 use stray::message::menu::{MenuType, TrayMenu};
 use stray::message::tray::StatusNotifierItem;
 use stray::message::{NotifierItemCommand, NotifierItemMessage};
-use stray::tokio_stream::StreamExt;
-use stray::SystemTray;
+use stray::StatusNotifierWatcher;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::Sender;
 
 struct NotifierItem {
     item: StatusNotifierItem,
@@ -28,7 +26,7 @@ static STATE: Lazy<Mutex<HashMap<String, NotifierItem>>> = Lazy::new(|| Mutex::n
 impl StatusNotifierWrapper {
     fn to_menu_item(
         self,
-        sender: Sender<NotifierItemCommand>,
+        sender: mpsc::Sender<NotifierItemCommand>,
         notifier_address: String,
         menu_path: String,
     ) -> MenuItem {
@@ -120,7 +118,7 @@ fn build_ui(application: &gtk::Application) {
 fn spawn_local_handler(
     v_box: MenuBar,
     mut receiver: mpsc::Receiver<NotifierItemMessage>,
-    cmd_tx: Sender<NotifierItemCommand>,
+    cmd_tx: mpsc::Sender<NotifierItemCommand>,
 ) {
     let main_context = glib::MainContext::default();
     let future = async move {
@@ -187,19 +185,23 @@ fn spawn_local_handler(
 fn start_communication_thread(
     sender: mpsc::Sender<NotifierItemMessage>,
     cmd_rx: mpsc::Receiver<NotifierItemCommand>,
+
 ) {
     thread::spawn(move || {
         let runtime = Runtime::new().expect("Failed to create tokio RT");
 
         runtime.block_on(async {
-            let mut tray = SystemTray::new(cmd_rx).await;
+            let tray = StatusNotifierWatcher::new(cmd_rx).await.unwrap();
+            let mut host = tray.create_notifier_host("MyHost").await.unwrap();
 
-            while let Some(message) = tray.next().await {
+            while let Ok(message) = host.recv().await {
                 sender
                     .send(message)
                     .await
                     .expect("failed to send message to UI");
             }
+
+            host.destroy().await.unwrap();
         })
     });
 }

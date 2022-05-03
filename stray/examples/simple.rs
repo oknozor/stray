@@ -1,29 +1,36 @@
-use stray::message::NotifierItemMessage;
-use stray::SystemTray;
-use tokio_stream::StreamExt;
+use tokio::sync::mpsc;
+use stray::StatusNotifierWatcher;
+use tokio::join;
 
 #[tokio::main]
-async fn main() {
-    let (_ui_tx, ui_rx) = tokio::sync::mpsc::channel(32);
-    let mut tray = SystemTray::new(ui_rx).await;
+async fn main() -> stray::error::Result<()> {
+    let (cmd_tx, cmd_rx) = mpsc::channel(10);
+    let tray = StatusNotifierWatcher::new(cmd_rx).await?;
 
-    while let Some(message) = tray.next().await {
-        match message {
-            NotifierItemMessage::Update {
-                address: id,
-                item,
-                menu,
-            } => {
-                println!(
-                    "NotifierItem updated :
-                    id   = {id},
-                    item = {item:?},
-                    menu = {menu:?}"
-                );
-            }
-            NotifierItemMessage::Remove { address: id } => {
-                println!("NotifierItem removed : id = {id}");
-            }
+    let mut host_one = tray.create_notifier_host("host_one").await.unwrap();
+    let mut host_two = tray.create_notifier_host("host_two").await.unwrap();
+
+    let one = tokio::spawn(async move {
+        while let Ok(mesage) = host_one.recv().await {
+            println!("Message from host one {:?}", mesage);
         }
-    }
+    });
+
+    let two = tokio::spawn(async move {
+        let mut count = 0;
+        while let Ok(mesage) = host_two.recv().await {
+            count += 1;
+            if count > 5 {
+                break;
+            }
+            println!("Message from host two {:?}", mesage);
+        };
+
+        host_two.destroy().await?;
+        stray::error::Result::<()>::Ok(())
+    });
+
+
+    let _ = join!(one, two);
+    Ok(())
 }
