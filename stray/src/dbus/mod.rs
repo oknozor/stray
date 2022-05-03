@@ -20,7 +20,7 @@ use zbus::fdo::PropertiesProxy;
 
 pub async fn start_notifier_watcher(
     sender: Sender<NotifierItemMessage>,
-    mut ui_rx: Receiver<NotifierItemCommand>,
+    ui_rx: Receiver<NotifierItemCommand>,
 ) -> anyhow::Result<()> {
     let watcher = Watcher::new(sender.clone());
     let done_listener = watcher.event.listen();
@@ -40,36 +40,7 @@ pub async fn start_notifier_watcher(
         })
     };
 
-    let handle_ui_event = tokio::spawn(async move {
-        while let Some(event) = ui_rx.recv().await {
-            match event {
-                NotifierItemCommand::MenuItemClicked {
-                    submenu_id: id,
-                    menu_path,
-                    notifier_address,
-                } => {
-                    let dbus_menu_proxy = DBusMenuProxy::builder(&conn)
-                        .destination(notifier_address)
-                        .unwrap()
-                        .path(menu_path)
-                        .unwrap()
-                        .build()
-                        .await
-                        .unwrap();
-
-                    dbus_menu_proxy
-                        .event(
-                            id,
-                            "clicked",
-                            &zbus::zvariant::Value::I32(32),
-                            chrono::offset::Local::now().timestamp_subsec_micros(),
-                        )
-                        .await
-                        .unwrap();
-                }
-            }
-        }
-    });
+    let handle_ui_event = tokio::spawn(async move { ui_handle(ui_rx, &conn).await });
 
     let _ = tokio::join!(
         status_notifier_removed_handle,
@@ -77,6 +48,41 @@ pub async fn start_notifier_watcher(
         status_notifier_host_handle,
         handle_ui_event
     );
+
+    Ok(())
+}
+
+// Forward UI command to the Dbus menu proxy
+async fn ui_handle(
+    mut ui_rx: Receiver<NotifierItemCommand>,
+    conn: &Connection,
+) -> anyhow::Result<()> {
+    while let Some(event) = ui_rx.recv().await {
+        match event {
+            NotifierItemCommand::MenuItemClicked {
+                submenu_id: id,
+                menu_path,
+                notifier_address,
+            } => {
+                let dbus_menu_proxy = DBusMenuProxy::builder(&conn)
+                    .destination(notifier_address)
+                    .unwrap()
+                    .path(menu_path)
+                    .unwrap()
+                    .build()
+                    .await?;
+
+                dbus_menu_proxy
+                    .event(
+                        id,
+                        "clicked",
+                        &zbus::zvariant::Value::I32(32),
+                        chrono::offset::Local::now().timestamp_subsec_micros(),
+                    )
+                    .await?;
+            }
+        }
+    }
 
     Ok(())
 }
@@ -228,17 +234,15 @@ async fn fetch_properties_and_update(
     if let Ok(item) = item {
         let menu = match &item.menu {
             None => None,
-            Some(menu_address) => {
-                let item_address = item_address.as_str();
-                let dbus_menu_proxy = DBusMenuProxy::builder(&connection)
-                    .destination(item_address)?
-                    .path(menu_address.as_str())?
-                    .build()
-                    .await?;
-
-                let menu: MenuLayout = dbus_menu_proxy.get_layout(0, 10, &[]).await.unwrap();
-                Some(TrayMenu::try_from(menu)?)
-            }
+            Some(menu_address) => watch_menu(
+                item_address.clone(),
+                item.clone(),
+                connection.clone(),
+                menu_address.clone(),
+                sender.clone(),
+            )
+            .await
+            .ok(),
         };
 
         sender
@@ -251,4 +255,45 @@ async fn fetch_properties_and_update(
     }
 
     Ok(())
+}
+
+async fn watch_menu(
+    item_address: String,
+    item: StatusNotifierItem,
+    connection: Connection,
+    menu_address: String,
+    sender: Sender<NotifierItemMessage>,
+) -> anyhow::Result<TrayMenu> {
+    let dbus_menu_proxy = DBusMenuProxy::builder(&connection)
+        .destination(item_address.as_str())?
+        .path(menu_address.as_str())?
+        .build()
+        .await?;
+
+    let menu: MenuLayout = dbus_menu_proxy.get_layout(0, 10, &[]).await.unwrap();
+
+    tokio::spawn(async move {
+        let dbus_menu_proxy = DBusMenuProxy::builder(&connection)
+            .destination(item_address.as_str())?
+            .path(menu_address.as_str())?
+            .build()
+            .await?;
+
+        let mut props_changed = dbus_menu_proxy.receive_all_signals().await?;
+
+        while props_changed.next().await.is_some() {
+            let menu: MenuLayout = dbus_menu_proxy.get_layout(0, 10, &[]).await.unwrap();
+            let menu = TrayMenu::try_from(menu).ok();
+            sender
+                .send(NotifierItemMessage::Update {
+                    address: item_address.to_string(),
+                    item: item.clone(),
+                    menu,
+                })
+                .await?;
+        }
+        anyhow::Result::<(), anyhow::Error>::Ok(())
+    });
+
+    TrayMenu::try_from(menu).map_err(Into::into)
 }

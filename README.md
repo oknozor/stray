@@ -1,6 +1,6 @@
 # Stray
 
-Stray is a minimal [SystemNotifierWatcher](https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierWatcher/)
+Stray is a [SystemNotifierWatcher](https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierWatcher/)
 implementation which goal is to provide a minimalistic API to access tray icons and menu.
 
 ## Examples
