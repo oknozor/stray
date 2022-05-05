@@ -31,6 +31,18 @@ pub struct SubMenuLayout {
     pub submenus: Vec<OwnedValue>,
 }
 
+#[derive(Deserialize, Serialize, Type, PartialEq, Debug)]
+pub struct UpdatedProps {
+    pub id: i32,
+    pub fields: HashMap<String, OwnedValue>
+}
+
+#[derive(Deserialize, Serialize, Type, PartialEq, Debug)]
+pub struct RemovedProps {
+    pub id: i32,
+    pub props: Vec<String>
+}
+
 type GroupProperties = Vec<(i32, HashMap<String, zbus::zvariant::OwnedValue>)>;
 
 #[dbus_proxy(interface = "com.canonical.dbusmenu")]
@@ -49,7 +61,7 @@ trait DBusMenu {
         &self,
         ids: &[i32],
         property_names: &[&str],
-    ) -> zbus::Result<(u32, GroupProperties)>;
+    ) -> zbus::Result<GroupProperties>;
 
     fn get_layout(
         &self,
@@ -66,11 +78,8 @@ trait DBusMenu {
     #[dbus_proxy(signal)]
     fn items_properties_updated(
         &self,
-        updated_props: Vec<(
-            i32,
-            std::collections::HashMap<&str, zbus::zvariant::Value<'_>>,
-        )>,
-        removed_props: Vec<(i32, Vec<&str>)>,
+        updated_props: Vec<UpdatedProps>,
+        removed_props: Vec<RemovedProps>,
     ) -> zbus::Result<()>;
 
     #[dbus_proxy(signal)]

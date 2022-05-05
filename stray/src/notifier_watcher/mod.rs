@@ -1,7 +1,7 @@
-use crate::dbus::dbusmenu_proxy::DBusMenuProxy;
+use crate::dbus::dbusmenu_proxy::{DBusMenuProxy, UpdatedProps};
 use crate::dbus::notifier_item_proxy::StatusNotifierItemProxy;
 use crate::dbus::notifier_watcher_proxy::StatusNotifierWatcherProxy;
-use crate::error::Result;
+use crate::error::{Result};
 use crate::message::menu::TrayMenu;
 use crate::message::NotifierItemCommand;
 use crate::notifier_watcher::notifier_address::NotifierAddress;
@@ -220,7 +220,7 @@ async fn watch_notifier_props(
             address_parts.destination.clone(),
             connection.clone(),
         )
-        .await?;
+            .await?;
 
         // Connect to the notifier proxy to watch for properties change
         let notifier_item_proxy = StatusNotifierItemProxy::builder(&connection)
@@ -239,7 +239,7 @@ async fn watch_notifier_props(
                 address_parts.destination.clone(),
                 connection.clone(),
             )
-            .await?;
+                .await?;
         }
 
         Result::<()>::Ok(())
@@ -270,8 +270,8 @@ async fn fetch_properties_and_update(
                 menu_address.clone(),
                 sender.clone(),
             )
-            .await
-            .ok(),
+                .await
+                .ok(),
         };
 
         tracing::info!("StatusNotifierItem updated, dbus-address={item_address}");
@@ -302,7 +302,6 @@ async fn watch_menu(
         .await?;
 
     let menu: MenuLayout = dbus_menu_proxy.get_layout(0, 10, &[]).await.unwrap();
-
     tokio::spawn(async move {
         let dbus_menu_proxy = DBusMenuProxy::builder(&connection)
             .destination(item_address.as_str())?
@@ -311,17 +310,55 @@ async fn watch_menu(
             .await?;
 
         let mut props_changed = dbus_menu_proxy.receive_all_signals().await?;
+        let mut properties_updated = dbus_menu_proxy.receive_items_properties_updated().await?;
+        let mut lauyout_updated = dbus_menu_proxy.receive_layout_updated().await?;
 
-        while props_changed.next().await.is_some() {
-            let menu: MenuLayout = dbus_menu_proxy.get_layout(0, 10, &[]).await.unwrap();
-            let menu = TrayMenu::try_from(menu).ok();
-            sender.send(NotifierItemMessage::Update {
-                address: item_address.to_string(),
-                item: Box::new(item.clone()),
-                menu,
-            })?;
-        }
-        anyhow::Result::<(), anyhow::Error>::Ok(())
+        tokio::join!(
+            async {
+                while props_changed.next().await.is_some() {
+                    let menu: MenuLayout = dbus_menu_proxy.get_layout(0, 10, &[]).await.unwrap();
+                    let menu = TrayMenu::try_from(menu).ok();
+                    sender.send(NotifierItemMessage::Update {
+                        address: item_address.to_string(),
+                        item: Box::new(item.clone()),
+                        menu,
+                    })?;
+                }
+
+                Result::<()>::Ok(())
+            },
+            async {
+                while let Some(signal) = properties_updated.next().await {
+                    let args = signal.args()?;
+                    println!("UPDATED {}", serde_json::to_string(&args.updated_props).unwrap());
+
+                    let updated_props: Vec<UpdatedProps> = args.updated_props;
+                    let ids: Vec<i32> = updated_props.iter()
+                        .map(|p| p.id)
+                        .collect();
+
+                    println!("{ids:?}");
+                    let props = dbus_menu_proxy.get_group_properties(ids.as_slice(), &["children-display"]).await.expect("PROPS ERROR");
+
+                    println!("PROPS {:?}", props);
+
+                    println!("REMOVED : {}", serde_json::to_string(&args.removed_props).unwrap());
+
+                }
+
+                Result::<()>::Ok(())
+            },
+            async {
+                while let Some(signal) = lauyout_updated.next().await {
+                    let signal = signal.args()?;
+                    println!("got signal {:?}",signal);
+                }
+
+                Result::<()>::Ok(())
+            }
+        );
+
+        Result::<()>::Ok(())
     });
 
     TrayMenu::try_from(menu).map_err(Into::into)
