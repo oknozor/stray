@@ -19,7 +19,7 @@ pub enum NotifierItemMessage {
         /// the status [`StatusNotifierItem`] and its metadata, to build a system tray ui
         /// the minimal would be to display it's icon and use it's menu address to send menu activation
         /// requests.
-        item: StatusNotifierItem,
+        item: Box<StatusNotifierItem>,
         /// The menu layout of the item.
         menu: Option<TrayMenu>,
     },

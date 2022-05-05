@@ -1,15 +1,17 @@
-use tokio::sync::{broadcast, mpsc};
-use zbus::{Connection, ConnectionBuilder};
-use crate::{DbusNotifierWatcher, InterfaceName, MenuLayout, NotifierItemMessage, StatusNotifierItem};
 use crate::dbus::dbusmenu_proxy::DBusMenuProxy;
 use crate::dbus::notifier_item_proxy::StatusNotifierItemProxy;
 use crate::dbus::notifier_watcher_proxy::StatusNotifierWatcherProxy;
+use crate::error::Result;
 use crate::message::menu::TrayMenu;
-use crate::notifier_watcher::notifier_address::NotifierAddress;
-use zbus::fdo::PropertiesProxy;
-use tokio_stream::StreamExt;
-use crate::error::{Result};
 use crate::message::NotifierItemCommand;
+use crate::notifier_watcher::notifier_address::NotifierAddress;
+use crate::{
+    DbusNotifierWatcher, InterfaceName, MenuLayout, NotifierItemMessage, StatusNotifierItem,
+};
+use tokio::sync::{broadcast, mpsc};
+use tokio_stream::StreamExt;
+use zbus::fdo::PropertiesProxy;
+use zbus::{Connection, ConnectionBuilder};
 
 pub(crate) mod notifier_address;
 
@@ -50,9 +52,7 @@ impl StatusNotifierWatcher {
 }
 
 // Forward UI command to the Dbus menu proxy
-async fn dispatch_ui_command(
-    mut cmd_rx: mpsc::Receiver<NotifierItemCommand>,
-) -> Result<()> {
+async fn dispatch_ui_command(mut cmd_rx: mpsc::Receiver<NotifierItemCommand>) -> Result<()> {
     let connection = Connection::session().await?;
 
     while let Some(command) = cmd_rx.recv().await {
@@ -85,20 +85,19 @@ async fn dispatch_ui_command(
     Ok(())
 }
 
-
-async fn start_notifier_watcher(
-    sender: broadcast::Sender<NotifierItemMessage>,
-) -> Result<()> {
+async fn start_notifier_watcher(sender: broadcast::Sender<NotifierItemMessage>) -> Result<()> {
     let watcher = DbusNotifierWatcher::new(sender.clone());
 
-    let dbus_connection = ConnectionBuilder::session()?
+    ConnectionBuilder::session()?
         .name("org.kde.StatusNotifierWatcher")?
         .serve_at("/StatusNotifierWatcher", watcher)?
         .build()
         .await?;
 
+    let connection = Connection::session().await?;
+
     let status_notifier_removed = {
-        let connection = dbus_connection.clone();
+        let connection = connection.clone();
         tokio::spawn(async move {
             status_notifier_removed_handle(connection).await?;
             Result::<()>::Ok(())
@@ -106,16 +105,11 @@ async fn start_notifier_watcher(
     };
 
     let status_notifier = {
-        let connection = dbus_connection.clone();
-        tokio::spawn(async move {
-            status_notifier_handle(connection, sender).await.unwrap()
-        })
+        let connection = connection.clone();
+        tokio::spawn(async move { status_notifier_handle(connection, sender).await.unwrap() })
     };
 
-    let _ = tokio::join!(
-        status_notifier,
-        status_notifier_removed,
-    );
+    let _ = tokio::join!(status_notifier, status_notifier_removed,);
 
     Ok(())
 }
@@ -151,11 +145,11 @@ async fn status_notifier_removed_handle(connection: Connection) -> Result<()> {
     Ok(())
 }
 
-
 // 1. Start StatusNotifierHost on DBus
 // 2. Query already registered StatusNotifier, call GetAll to update the UI  and  listen for property changes via Dbus.PropertiesChanged
 // 3. subscribe to StatusNotifierWatcher.RegisteredStatusNotifierItems
 // 4. Whenever a new notifier is registered repeat steps 2
+// FIXME : Move this to HOST
 async fn status_notifier_handle(
     connection: Connection,
     sender: broadcast::Sender<NotifierItemMessage>,
@@ -186,7 +180,10 @@ async fn status_notifier_handle(
     while let Some(notifier) = new_notifier.next().await {
         let args = notifier.args()?;
         let service: &str = args.service();
-        tracing::info!("StatusNotifierItemRegistered signal received service={}", service);
+        tracing::info!(
+            "StatusNotifierItemRegistered signal received service={}",
+            service
+        );
 
         let service = NotifierAddress::from_notifier_service(service);
         if let Ok(notifier_address) = service {
@@ -223,7 +220,7 @@ async fn watch_notifier_props(
             address_parts.destination.clone(),
             connection.clone(),
         )
-            .await?;
+        .await?;
 
         // Connect to the notifier proxy to watch for properties change
         let notifier_item_proxy = StatusNotifierItemProxy::builder(&connection)
@@ -242,7 +239,7 @@ async fn watch_notifier_props(
                 address_parts.destination.clone(),
                 connection.clone(),
             )
-                .await?;
+            .await?;
         }
 
         Result::<()>::Ok(())
@@ -273,8 +270,8 @@ async fn fetch_properties_and_update(
                 menu_address.clone(),
                 sender.clone(),
             )
-                .await
-                .ok(),
+            .await
+            .ok(),
         };
 
         tracing::info!("StatusNotifierItem updated, dbus-address={item_address}");
@@ -282,9 +279,10 @@ async fn fetch_properties_and_update(
         sender
             .send(NotifierItemMessage::Update {
                 address: item_address.to_string(),
-                item,
+                item: Box::new(item),
                 menu,
-            }).expect("Failed to dispatch NotifierItemMessage");
+            })
+            .expect("Failed to dispatch NotifierItemMessage");
     }
 
     Ok(())
@@ -317,18 +315,14 @@ async fn watch_menu(
         while props_changed.next().await.is_some() {
             let menu: MenuLayout = dbus_menu_proxy.get_layout(0, 10, &[]).await.unwrap();
             let menu = TrayMenu::try_from(menu).ok();
-            sender
-                .send(NotifierItemMessage::Update {
-                    address: item_address.to_string(),
-                    item: item.clone(),
-                    menu,
-                })?;
+            sender.send(NotifierItemMessage::Update {
+                address: item_address.to_string(),
+                item: Box::new(item.clone()),
+                menu,
+            })?;
         }
         anyhow::Result::<(), anyhow::Error>::Ok(())
     });
 
     TrayMenu::try_from(menu).map_err(Into::into)
 }
-
-
-

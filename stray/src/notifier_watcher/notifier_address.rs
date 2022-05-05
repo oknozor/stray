@@ -12,7 +12,7 @@ pub(crate) struct NotifierAddress {
 }
 
 impl NotifierAddress {
-    pub (crate) fn from_notifier_service(service: &str) -> error::Result<Self> {
+    pub(crate) fn from_notifier_service(service: &str) -> error::Result<Self> {
         if let Some((destination, path)) = service.split_once('/') {
             Ok(NotifierAddress {
                 destination: destination.to_string(),
@@ -27,7 +27,9 @@ impl NotifierAddress {
                 path: "/StatusNotifierItem".to_string(),
             })
         } else {
-            return Err(StatusNotifierWatcherError::DbusAddressError(service.to_string()));
+            Err(StatusNotifierWatcherError::DbusAddressError(
+                service.to_string(),
+            ))
         }
     }
 }

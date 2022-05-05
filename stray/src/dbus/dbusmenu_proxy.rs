@@ -31,6 +31,8 @@ pub struct SubMenuLayout {
     pub submenus: Vec<OwnedValue>,
 }
 
+type GroupProperties = Vec<(i32, HashMap<String, zbus::zvariant::OwnedValue>)>;
+
 #[dbus_proxy(interface = "com.canonical.dbusmenu")]
 trait DBusMenu {
     fn about_to_show(&self, id: i32) -> zbus::Result<bool>;
@@ -47,13 +49,7 @@ trait DBusMenu {
         &self,
         ids: &[i32],
         property_names: &[&str],
-    ) -> zbus::Result<(
-        u32,
-        Vec<(
-            i32,
-            std::collections::HashMap<String, zbus::zvariant::OwnedValue>,
-        )>,
-    )>;
+    ) -> zbus::Result<(u32, GroupProperties)>;
 
     fn get_layout(
         &self,

@@ -1,6 +1,6 @@
-use tokio::sync::mpsc;
 use stray::StatusNotifierWatcher;
 use tokio::join;
+use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> stray::error::Result<()> {
@@ -24,12 +24,11 @@ async fn main() -> stray::error::Result<()> {
                 break;
             }
             println!("Message from host two {:?}", mesage);
-        };
+        }
 
         host_two.destroy().await?;
         stray::error::Result::<()>::Ok(())
     });
-
 
     let _ = join!(one, two);
     Ok(())

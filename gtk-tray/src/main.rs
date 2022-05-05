@@ -24,7 +24,7 @@ pub struct StatusNotifierWrapper {
 static STATE: Lazy<Mutex<HashMap<String, NotifierItem>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 impl StatusNotifierWrapper {
-    fn to_menu_item(
+    fn into_menu_item(
         self,
         sender: mpsc::Sender<NotifierItemCommand>,
         notifier_address: String,
@@ -57,7 +57,7 @@ impl StatusNotifierWrapper {
         if !self.menu.submenu.is_empty() {
             for submenu_item in self.menu.submenu.iter().cloned() {
                 let submenu_item = StatusNotifierWrapper { menu: submenu_item };
-                let submenu_item = submenu_item.to_menu_item(
+                let submenu_item = submenu_item.into_menu_item(
                     sender.clone(),
                     notifier_address.clone(),
                     menu_path.clone(),
@@ -131,7 +131,7 @@ fn spawn_local_handler(
                     item,
                     menu,
                 } => {
-                    state.insert(id, NotifierItem { item, menu });
+                    state.insert(id, NotifierItem { item: *item, menu });
                 }
                 NotifierItemMessage::Remove { address } => {
                     state.remove(&address);
@@ -163,7 +163,7 @@ fn spawn_local_handler(
                                 let menu_path =
                                     notifier_item.item.menu.as_ref().unwrap().to_string();
                                 let address = address.to_string();
-                                item.to_menu_item(cmd_tx.clone(), address, menu_path)
+                                item.into_menu_item(cmd_tx.clone(), address, menu_path)
                             })
                             .for_each(|item| menu.append(&item));
 
@@ -185,7 +185,6 @@ fn spawn_local_handler(
 fn start_communication_thread(
     sender: mpsc::Sender<NotifierItemMessage>,
     cmd_rx: mpsc::Receiver<NotifierItemCommand>,
-
 ) {
     thread::spawn(move || {
         let runtime = Runtime::new().expect("Failed to create tokio RT");

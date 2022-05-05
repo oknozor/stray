@@ -12,6 +12,8 @@
 
 use zbus::dbus_proxy;
 
+type ToolTip = (String, Vec<(i32, i32, Vec<u8>)>);
+
 #[dbus_proxy(interface = "org.kde.StatusNotifierItem")]
 trait StatusNotifierItem {
     /// Activate method
@@ -108,5 +110,5 @@ trait StatusNotifierItem {
 
     /// ToolTip property
     #[dbus_proxy(property)]
-    fn tool_tip(&self) -> zbus::Result<(String, Vec<(i32, i32, Vec<u8>)>)>;
+    fn tool_tip(&self) -> zbus::Result<ToolTip>;
 }

@@ -1,6 +1,6 @@
+use crate::NotifierItemMessage;
 use thiserror::Error;
 use tokio::sync::broadcast;
-use crate::NotifierItemMessage;
 
 pub type Result<T> = std::result::Result<T, StatusNotifierWatcherError>;
 

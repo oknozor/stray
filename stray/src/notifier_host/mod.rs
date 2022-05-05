@@ -1,8 +1,8 @@
+use crate::dbus::notifier_watcher_proxy::StatusNotifierWatcherProxy;
+use crate::error::{Result, StatusNotifierWatcherError};
+use crate::{NotifierItemMessage, StatusNotifierWatcher};
 use tokio::sync::broadcast;
 use zbus::{Connection, ConnectionBuilder};
-use crate::dbus::notifier_watcher_proxy::StatusNotifierWatcherProxy;
-use crate::{NotifierItemMessage, StatusNotifierWatcher};
-use crate::error::{Result, StatusNotifierWatcherError};
 
 pub struct NotifierHost {
     wellknown_name: String,
@@ -30,14 +30,16 @@ impl StatusNotifierWatcher {
         Ok(NotifierHost {
             wellknown_name,
             rx: self.tx.subscribe(),
-            conn
+            conn,
         })
     }
 }
 
 impl NotifierHost {
     pub async fn recv(&mut self) -> Result<NotifierItemMessage> {
-        self.rx.recv().await
+        self.rx
+            .recv()
+            .await
             .map_err(StatusNotifierWatcherError::from)
     }
 

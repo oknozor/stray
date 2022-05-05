@@ -200,8 +200,8 @@ impl TryFrom<&OwnedValue> for MenuItem {
             // see: https://github.com/AyatanaIndicators/libdbusmenu/blob/4d03141aea4e2ad0f04ab73cf1d4f4bcc4a19f6c/libdbusmenu-glib/dbus-menu.xml#L75
             menu.label = dict
                 .get::<str, str>("label")?
-                .map(|label| label.replace("_", ""))
-                .unwrap_or("".to_string());
+                .map(|label| label.replace('_', ""))
+                .unwrap_or_default();
 
             if let Some(enabled) = dict.get::<str, bool>("enabled")? {
                 menu.enabled = *enabled
@@ -218,8 +218,7 @@ impl TryFrom<&OwnedValue> for MenuItem {
                 .ok()
                 .flatten()
                 .map(Disposition::from_str)
-                .map(Result::ok)
-                .flatten()
+                .and_then(Result::ok)
             {
                 menu.disposition = disposition;
             }
@@ -236,8 +235,7 @@ impl TryFrom<&OwnedValue> for MenuItem {
                 .ok()
                 .flatten()
                 .map(ToggleType::from_str)
-                .map(Result::ok)
-                .flatten()
+                .and_then(Result::ok)
                 .unwrap_or(ToggleType::CannotBeToggled);
 
             menu.menu_type = dict
@@ -245,8 +243,7 @@ impl TryFrom<&OwnedValue> for MenuItem {
                 .ok()
                 .flatten()
                 .map(MenuType::from_str)
-                .map(Result::ok)
-                .flatten()
+                .and_then(Result::ok)
                 .unwrap_or(MenuType::Standard);
         };
 

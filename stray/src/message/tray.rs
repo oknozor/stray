@@ -148,13 +148,13 @@ impl PropsWrapper {
         self.0
             .get("Category")
             .and_then(|value| value.downcast_ref::<str>().map(Category::from_str))
-            .unwrap_or(Err(anyhow!("'Category' not found for item")))
+            .unwrap_or_else(|| Err(anyhow!("'Category' not found for item")))
     }
 
     fn get_status(&self) -> anyhow::Result<Status> {
         self.0
             .get("Status")
             .and_then(|value| value.downcast_ref::<str>().map(Status::from_str))
-            .unwrap_or(Err(anyhow!("'Status' not found for item")))
+            .unwrap_or_else(|| Err(anyhow!("'Status' not found for item")))
     }
 }

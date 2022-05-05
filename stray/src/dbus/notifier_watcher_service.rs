@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use tokio::sync::broadcast;
 
 use zbus::dbus_interface;
-use zbus::{MessageHeader, SignalContext};
 use zbus::Result;
+use zbus::{MessageHeader, SignalContext};
 
 use crate::NotifierItemMessage;
 
@@ -41,7 +41,8 @@ impl DbusNotifierWatcher {
                 self.sender
                     .send(NotifierItemMessage::Remove {
                         address: notifier_address.to_string(),
-                    }).expect("Failed to dispatch notifier item removed message");
+                    })
+                    .expect("Failed to dispatch notifier item removed message");
             }
         }
 
@@ -89,7 +90,9 @@ impl DbusNotifierWatcher {
     }
 
     async fn unregister_status_notifier_item(&mut self, service: &str) {
-        self.remove_notifier(service).await.expect("Failed to unregister StatusNotifierItem")
+        self.remove_notifier(service)
+            .await
+            .expect("Failed to unregister StatusNotifierItem")
     }
 
     #[dbus_interface(signal)]
