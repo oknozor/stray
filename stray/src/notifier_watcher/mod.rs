@@ -1,4 +1,4 @@
-use crate::dbus::dbusmenu_proxy::{DBusMenuProxy, UpdatedProps};
+use crate::dbus::dbusmenu_proxy::{DBusMenuProxy};
 use crate::dbus::notifier_item_proxy::StatusNotifierItemProxy;
 use crate::dbus::notifier_watcher_proxy::StatusNotifierWatcherProxy;
 use crate::error::{Result};
@@ -332,13 +332,16 @@ async fn watch_menu(
                     let args = signal.args()?;
                     println!("UPDATED {}", serde_json::to_string(&args.updated_props).unwrap());
 
-                    let updated_props: Vec<UpdatedProps> = args.updated_props;
+                    let updated_props= args.updated_props;
                     let ids: Vec<i32> = updated_props.iter()
-                        .map(|p| p.id)
+                        .map(|p| {
+                            println!("{} -> {:?}", p.0, p.1);
+                            p.0
+                        })
                         .collect();
 
                     println!("{ids:?}");
-                    let props = dbus_menu_proxy.get_group_properties(ids.as_slice(), &["children-display"]).await.expect("PROPS ERROR");
+                    let props = dbus_menu_proxy.get_group_properties(ids.as_slice(), &[]).await.expect("PROPS ERROR");
 
                     println!("PROPS {:?}", props);
 

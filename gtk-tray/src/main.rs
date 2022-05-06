@@ -11,66 +11,19 @@ use stray::message::{NotifierItemCommand, NotifierItemMessage};
 use stray::StatusNotifierWatcher;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
+use glib::GBoxed;
+use crate::menu_bar::DbusMenuBar;
+use crate::menu_item::DbusMenuItem;
+
+pub mod menu_item;
+pub mod menu_bar;
 
 struct NotifierItem {
     item: StatusNotifierItem,
     menu: Option<TrayMenu>,
 }
 
-pub struct StatusNotifierWrapper {
-    menu: stray::message::menu::MenuItem,
-}
-
 static STATE: Lazy<Mutex<HashMap<String, NotifierItem>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-
-impl StatusNotifierWrapper {
-    fn into_menu_item(
-        self,
-        sender: mpsc::Sender<NotifierItemCommand>,
-        notifier_address: String,
-        menu_path: String,
-    ) -> MenuItem {
-        let item: Box<dyn AsRef<MenuItem>> = match self.menu.menu_type {
-            MenuType::Separator => Box::new(SeparatorMenuItem::new()),
-            MenuType::Standard => Box::new(MenuItem::with_label(self.menu.label.as_str())),
-        };
-
-        let item = (*item).as_ref().clone();
-
-        {
-            let sender = sender.clone();
-            let notifier_address = notifier_address.clone();
-            let menu_path = menu_path.clone();
-
-            item.connect_activate(move |_item| {
-                sender
-                    .try_send(NotifierItemCommand::MenuItemClicked {
-                        submenu_id: self.menu.id,
-                        menu_path: menu_path.clone(),
-                        notifier_address: notifier_address.clone(),
-                    })
-                    .unwrap();
-            });
-        };
-
-        let submenu = Menu::new();
-        if !self.menu.submenu.is_empty() {
-            for submenu_item in self.menu.submenu.iter().cloned() {
-                let submenu_item = StatusNotifierWrapper { menu: submenu_item };
-                let submenu_item = submenu_item.into_menu_item(
-                    sender.clone(),
-                    notifier_address.clone(),
-                    menu_path.clone(),
-                );
-                submenu.append(&submenu_item);
-            }
-
-            item.set_submenu(Some(&submenu));
-        }
-
-        item
-    }
-}
 
 impl NotifierItem {
     fn get_icon(&self) -> Option<Image> {
@@ -105,7 +58,7 @@ fn build_ui(application: &gtk::Application) {
     window.set_position(gtk::WindowPosition::Center);
     window.set_default_size(350, 70);
 
-    let menu_bar = MenuBar::new();
+    let menu_bar = DbusMenuBar::new();
     window.add(&menu_bar);
     let (sender, receiver) = mpsc::channel(32);
     let (cmd_tx, cmd_rx) = mpsc::channel(32);
@@ -116,7 +69,7 @@ fn build_ui(application: &gtk::Application) {
 }
 
 fn spawn_local_handler(
-    v_box: MenuBar,
+    menu_bar: DbusMenuBar,
     mut receiver: mpsc::Receiver<NotifierItemMessage>,
     cmd_tx: mpsc::Sender<NotifierItemCommand>,
 ) {
@@ -138,43 +91,18 @@ fn spawn_local_handler(
                 }
             }
 
-            for child in v_box.children() {
-                v_box.remove(&child);
-            }
+
 
             for (address, notifier_item) in state.iter() {
                 if let Some(icon) = notifier_item.get_icon() {
-                    // Create the menu
+                    let icon_name = notifier_item.item.icon_name.clone();
+                    let icon_theme = notifier_item.item.icon_theme_path.clone();
 
-                    let menu_item = MenuItem::new();
-                    let menu_item_box = gtk::Box::default();
-                    menu_item_box.add(&icon);
-                    menu_item.add(&menu_item_box);
-
-                    if let Some(tray_menu) = &notifier_item.menu {
-                        let menu = Menu::new();
-                        tray_menu
-                            .submenus
-                            .iter()
-                            .map(|submenu| StatusNotifierWrapper {
-                                menu: submenu.to_owned(),
-                            })
-                            .map(|item| {
-                                let menu_path =
-                                    notifier_item.item.menu.as_ref().unwrap().to_string();
-                                let address = address.to_string();
-                                item.into_menu_item(cmd_tx.clone(), address, menu_path)
-                            })
-                            .for_each(|item| menu.append(&item));
-
-                        if !tray_menu.submenus.is_empty() {
-                            menu_item.set_submenu(Some(&menu));
-                        }
-                    }
-                    v_box.append(&menu_item);
+                    menu_bar.set_property("icon-theme-path", icon_theme.unwrap()).unwrap();
+                    menu_bar.set_property("icon-name", icon_name.unwrap()).unwrap();
                 };
 
-                v_box.show_all();
+                menu_bar.show_all();
             }
         }
     };
