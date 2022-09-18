@@ -26,7 +26,6 @@ impl StatusNotifierWatcher {
     /// Once created you can receive [`StatusNotifierItem`]. Once created you can start to poll message
     /// using the [`Stream`] implementation.
     pub async fn new(cmd_rx: mpsc::Receiver<NotifierItemCommand>) -> Result<StatusNotifierWatcher> {
-        tracing_subscriber::fmt::init();
         let (tx, _) = broadcast::channel(5);
 
         {
