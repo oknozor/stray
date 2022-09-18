@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> stray::error::Result<()> {
-    let (cmd_tx, cmd_rx) = mpsc::channel(10);
+    let (_cmd_tx, cmd_rx) = mpsc::channel(10);
     let tray = StatusNotifierWatcher::new(cmd_rx).await?;
 
     let mut host_one = tray.create_notifier_host("host_one").await.unwrap();
