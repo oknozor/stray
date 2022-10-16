@@ -50,6 +50,7 @@ impl DbusNotifierWatcher {
     }
 }
 
+#[allow(dead_code)]
 #[dbus_interface(name = "org.kde.StatusNotifierWatcher")]
 impl DbusNotifierWatcher {
     async fn register_status_notifier_host(

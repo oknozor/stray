@@ -31,6 +31,7 @@ pub struct SubMenuLayout {
     pub submenus: Vec<OwnedValue>,
 }
 
+#[allow(dead_code)]
 type GroupProperties = Vec<(i32, HashMap<String, zbus::zvariant::OwnedValue>)>;
 
 #[dbus_proxy(interface = "com.canonical.dbusmenu")]

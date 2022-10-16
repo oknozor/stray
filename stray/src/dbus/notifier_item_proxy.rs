@@ -12,6 +12,7 @@
 
 use zbus::dbus_proxy;
 
+#[allow(dead_code)]
 type ToolTip = (String, Vec<(i32, i32, Vec<u8>)>);
 
 #[dbus_proxy(interface = "org.kde.StatusNotifierItem")]
