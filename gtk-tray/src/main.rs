@@ -88,6 +88,8 @@ impl NotifierItem {
 }
 
 fn main() {
+    tracing_subscriber::fmt::init();
+
     let application = gtk::Application::new(
         Some("com.github.gtk-rs.examples.menu_bar_system"),
         Default::default(),
