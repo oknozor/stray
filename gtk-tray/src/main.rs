@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::thread;
 use stray::message::menu::{MenuType, TrayMenu};
-use stray::message::tray::StatusNotifierItem;
+use stray::message::tray::{IconPixmap, StatusNotifierItem};
 use stray::message::{NotifierItemCommand, NotifierItemMessage};
 use stray::StatusNotifierWatcher;
 use tokio::runtime::Runtime;
@@ -74,16 +74,52 @@ impl StatusNotifierWrapper {
 
 impl NotifierItem {
     fn get_icon(&self) -> Option<Image> {
-        self.item.icon_theme_path.as_ref().map(|path| {
-            let theme = IconTheme::new();
-            theme.append_search_path(&path);
-            let icon_name = self.item.icon_name.as_ref().unwrap();
-            let icon_info = theme
-                .lookup_icon(icon_name, 24, IconLookupFlags::empty())
-                .expect("Failed to lookup icon info");
+        match &self.item.icon_pixmap {
+            None => self.get_icon_from_theme(),
+            Some(pixmaps) => self.get_icon_from_pixmaps(pixmaps),
+        }
+    }
 
-            Image::from_pixbuf(icon_info.load_icon().ok().as_ref())
-        })
+    fn get_icon_from_pixmaps(&self, pixmaps: &Vec<IconPixmap>) -> Option<Image> {
+        let pixmap = pixmaps.iter().find(|pm|
+            pm.height > 20 && pm.height < 32
+        ).expect("No icon of suitable size found");
+
+        let pixbuf = gtk::gdk_pixbuf::Pixbuf::new(
+            gtk::gdk_pixbuf::Colorspace::Rgb,
+            true,
+            8,
+            pixmap.width,
+            pixmap.height,
+        )
+        .expect("Failed to allocate pixbuf");
+
+        for y in 0..pixmap.height {
+            for x in 0..pixmap.width {
+                let index = (y * pixmap.width + x) * 4;
+                let a = pixmap.pixels[index as usize];
+                let r = pixmap.pixels[(index + 1) as usize];
+                let g = pixmap.pixels[(index + 2) as usize];
+                let b = pixmap.pixels[(index + 3) as usize];
+                pixbuf.put_pixel(x as u32, y as u32, r, g, b, a);
+            }
+        }
+
+        Some(Image::from_pixbuf(Some(&pixbuf)))
+    }
+
+    fn get_icon_from_theme(&self) -> Option<Image> {
+        let theme = gtk::IconTheme::default().unwrap_or(IconTheme::new());
+        theme.rescan_if_needed();
+
+        self.item.icon_theme_path.as_ref().map(|path| {
+            theme.append_search_path(&path);
+        });
+
+        let icon_name = self.item.icon_name.as_ref().unwrap();
+        let icon = theme.lookup_icon(icon_name, 24, IconLookupFlags::FORCE_SIZE);
+
+        icon.map(|i| Image::from_pixbuf(i.load_icon().ok().as_ref()))
     }
 }
 
