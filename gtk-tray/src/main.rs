@@ -80,10 +80,11 @@ impl NotifierItem {
         }
     }
 
-    fn get_icon_from_pixmaps(&self, pixmaps: &Vec<IconPixmap>) -> Option<Image> {
-        let pixmap = pixmaps.iter().find(|pm|
-            pm.height > 20 && pm.height < 32
-        ).expect("No icon of suitable size found");
+    fn get_icon_from_pixmaps(&self, pixmaps: &[IconPixmap]) -> Option<Image> {
+        let pixmap = pixmaps
+            .iter()
+            .find(|pm| pm.height > 20 && pm.height < 32)
+            .expect("No icon of suitable size found");
 
         let pixbuf = gtk::gdk_pixbuf::Pixbuf::new(
             gtk::gdk_pixbuf::Colorspace::Rgb,
@@ -112,9 +113,9 @@ impl NotifierItem {
         let theme = gtk::IconTheme::default().unwrap_or(IconTheme::new());
         theme.rescan_if_needed();
 
-        self.item.icon_theme_path.as_ref().map(|path| {
-            theme.append_search_path(&path);
-        });
+        if let Some(path) = self.item.icon_theme_path.as_ref() {
+            theme.append_search_path(path);
+        }
 
         let icon_name = self.item.icon_name.as_ref().unwrap();
         let icon = theme.lookup_icon(icon_name, 24, IconLookupFlags::GENERIC_FALLBACK);

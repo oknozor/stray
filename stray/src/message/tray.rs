@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
-use zbus::zvariant::{ObjectPath, OwnedValue, Array, Structure};
+use zbus::zvariant::{Array, ObjectPath, OwnedValue, Structure};
 
 type DBusProperties = HashMap<String, OwnedValue>;
 
@@ -118,19 +118,23 @@ pub struct IconPixmap {
 
 impl IconPixmap {
     fn from_array(a: &Array<'_>) -> Option<Vec<Self>> {
-        let mut pixmaps = vec!();
+        let mut pixmaps = vec![];
 
         a.iter().for_each(|b| {
-             let s = b.downcast_ref::<Structure>();
-             let fields = s.unwrap().fields();
-             let width = fields[0].downcast_ref::<i32>().unwrap();
-             let height = fields[1].downcast_ref::<i32>().unwrap();
-             let pixel_values = fields[2].downcast_ref::<Array>().unwrap().get();
-             let mut pixels = vec!();
-             pixel_values.iter().for_each(|p| {
-                 pixels.push(p.downcast_ref::<u8>().unwrap().clone());
-             });
-            pixmaps.push(IconPixmap{width: *width, height: *height, pixels})
+            let s = b.downcast_ref::<Structure>();
+            let fields = s.unwrap().fields();
+            let width = fields[0].downcast_ref::<i32>().unwrap();
+            let height = fields[1].downcast_ref::<i32>().unwrap();
+            let pixel_values = fields[2].downcast_ref::<Array>().unwrap().get();
+            let mut pixels = vec![];
+            pixel_values.iter().for_each(|p| {
+                pixels.push(*p.downcast_ref::<u8>().unwrap());
+            });
+            pixmaps.push(IconPixmap {
+                width: *width,
+                height: *height,
+                pixels,
+            })
         });
 
         Some(pixmaps)
@@ -191,8 +195,7 @@ impl PropsWrapper {
     fn get_icon_pixmap(&self) -> Option<Vec<IconPixmap>> {
         self.0
             .get("IconPixmap")
-            .and_then(|value|
-                value.downcast_ref::<Array>().map(IconPixmap::from_array) )
-            .unwrap_or_else(|| None )
+            .and_then(|value| value.downcast_ref::<Array>().map(IconPixmap::from_array))
+            .unwrap_or(None)
     }
 }
