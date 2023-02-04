@@ -117,7 +117,7 @@ impl NotifierItem {
         });
 
         let icon_name = self.item.icon_name.as_ref().unwrap();
-        let icon = theme.lookup_icon(icon_name, 24, IconLookupFlags::FORCE_SIZE);
+        let icon = theme.lookup_icon(icon_name, 24, IconLookupFlags::GENERIC_FALLBACK);
 
         icon.map(|i| Image::from_pixbuf(i.load_icon().ok().as_ref()))
     }

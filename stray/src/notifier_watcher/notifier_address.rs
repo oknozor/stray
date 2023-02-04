@@ -18,12 +18,9 @@ impl NotifierAddress {
                 destination: destination.to_string(),
                 path: format!("/{}", path),
             })
-        } else if service.contains(':') {
-            let split = service.split(':').collect::<Vec<&str>>();
-            // Some StatusNotifierItems will not return an object path, in that case we fallback
-            // to the default path.
+        } else if service.starts_with(':') {
             Ok(NotifierAddress {
-                destination: format!(":{}", split[1]),
+                destination: service[0..6].to_string(),
                 path: "/StatusNotifierItem".to_string(),
             })
         } else {
