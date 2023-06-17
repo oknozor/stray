@@ -12,7 +12,7 @@ readme = "README.md"
 [dependencies]
 tokio = { version = "1.17.0", features = ["rt-multi-thread", "macros"] }
 tokio-stream = "0.1.8"
-zbus = { version = "2", default-features = false, features = ["tokio", "gvariant"] }
+zbus = { version = "3.13.1", default-features = false, features = ["tokio", "gvariant"] }
 anyhow = "1.0.56"
 serde = "1.0.136"
 byteorder = "1.4.3"

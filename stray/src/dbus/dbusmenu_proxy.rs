@@ -34,7 +34,7 @@ pub struct SubMenuLayout {
 #[allow(dead_code)]
 type GroupProperties = Vec<(i32, HashMap<String, zbus::zvariant::OwnedValue>)>;
 
-#[dbus_proxy(interface = "com.canonical.dbusmenu")]
+#[dbus_proxy(interface = "com.canonical.dbusmenu", assume_defaults = true)]
 trait DBusMenu {
     fn about_to_show(&self, id: i32) -> zbus::Result<bool>;
 
@@ -67,10 +67,7 @@ trait DBusMenu {
     #[dbus_proxy(signal)]
     fn items_properties_updated(
         &self,
-        updated_props: Vec<(
-            i32,
-            std::collections::HashMap<&str, zbus::zvariant::Value<'_>>,
-        )>,
+        updated_props: Vec<(i32, HashMap<&str, zbus::zvariant::Value<'_>>)>,
         removed_props: Vec<(i32, Vec<&str>)>,
     ) -> zbus::Result<()>;
 

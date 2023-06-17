@@ -87,13 +87,11 @@ async fn dispatch_ui_command(mut cmd_rx: mpsc::Receiver<NotifierItemCommand>) ->
 async fn start_notifier_watcher(sender: broadcast::Sender<NotifierItemMessage>) -> Result<()> {
     let watcher = DbusNotifierWatcher::new(sender.clone());
 
-    ConnectionBuilder::session()?
+    let connection = ConnectionBuilder::session()?
         .name("org.kde.StatusNotifierWatcher")?
         .serve_at("/StatusNotifierWatcher", watcher)?
         .build()
         .await?;
-
-    let connection = Connection::session().await?;
 
     let status_notifier_removed = {
         let connection = connection.clone();

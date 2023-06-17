@@ -15,7 +15,7 @@ use zbus::dbus_proxy;
 #[allow(dead_code)]
 type ToolTip = (String, Vec<(i32, i32, Vec<u8>)>);
 
-#[dbus_proxy(interface = "org.kde.StatusNotifierItem")]
+#[dbus_proxy(interface = "org.kde.StatusNotifierItem", assume_defaults = true)]
 trait StatusNotifierItem {
     /// Activate method
     fn activate(&self, x: i32, y: i32) -> zbus::Result<()>;
