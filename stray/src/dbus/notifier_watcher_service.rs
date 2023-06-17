@@ -110,7 +110,7 @@ impl DbusNotifierWatcher {
     async fn status_notifier_item_unregistered(
         ctxt: &SignalContext<'_>,
         service: &str,
-    ) -> zbus::Result<()>;
+    ) -> Result<()>;
 
     #[dbus_interface(property)]
     async fn is_status_notifier_host_registered(&self) -> bool {

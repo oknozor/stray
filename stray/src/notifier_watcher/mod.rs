@@ -17,8 +17,10 @@ pub(crate) mod notifier_address;
 
 /// Wrap the implementation of [org.freedesktop.StatusNotifierWatcher](https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierWatcher/)
 /// and [org.freedesktop.StatusNotifierHost](https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierHost/).
+#[derive(Debug)]
 pub struct StatusNotifierWatcher {
     pub(crate) tx: broadcast::Sender<NotifierItemMessage>,
+    _rx: broadcast::Receiver<NotifierItemMessage>,
 }
 
 impl StatusNotifierWatcher {
@@ -26,27 +28,26 @@ impl StatusNotifierWatcher {
     /// Once created you can receive [`StatusNotifierItem`]. Once created you can start to poll message
     /// using the [`Stream`] implementation.
     pub async fn new(cmd_rx: mpsc::Receiver<NotifierItemCommand>) -> Result<StatusNotifierWatcher> {
-        let (tx, _) = broadcast::channel(5);
+        let (tx, rx) = broadcast::channel(5);
 
         {
+            tracing::info!("Starting notifier watcher");
             let tx = tx.clone();
+
             tokio::spawn(async move {
-                tracing::info!("Starting notifier watcher");
                 start_notifier_watcher(tx)
                     .await
-                    .expect("Unexpected StatusNotifierError ");
+                    .expect("Unexpected StatusNotifierError");
             });
         }
 
-        {
-            tokio::spawn(async move {
-                dispatch_ui_command(cmd_rx)
-                    .await
-                    .expect("Unexpected error while dispatching UI command");
-            });
-        }
+        tokio::spawn(async move {
+            dispatch_ui_command(cmd_rx)
+                .await
+                .expect("Unexpected error while dispatching UI command");
+        });
 
-        Ok(StatusNotifierWatcher { tx })
+        Ok(StatusNotifierWatcher { tx, _rx: rx })
     }
 }
 
@@ -101,12 +102,19 @@ async fn start_notifier_watcher(sender: broadcast::Sender<NotifierItemMessage>) 
         })
     };
 
-    let status_notifier = {
-        let connection = connection.clone();
-        tokio::spawn(async move { status_notifier_handle(connection, sender).await.unwrap() })
-    };
+    let status_notifier =
+        tokio::spawn(async move { status_notifier_handle(connection, sender).await.unwrap() });
 
-    let _ = tokio::join!(status_notifier, status_notifier_removed,);
+    tokio::spawn(async move {
+        let (r1, r2) = tokio::join!(status_notifier, status_notifier_removed,);
+        if let Err(err) = r1 {
+            tracing::error!("Status notifier error: {err:?}")
+        }
+
+        if let Err(err) = r2 {
+            tracing::error!("Status notifier removed error: {err:?}")
+        }
+    });
 
     Ok(())
 }
@@ -132,10 +140,12 @@ async fn status_notifier_removed_handle(connection: Connection) -> Result<()> {
                 .await
                 .expect("Failed to open StatusNotifierWatcherProxy");
 
-            watcher_proxy
+            if let Err(err) = watcher_proxy
                 .unregister_status_notifier_item(&old_owner)
                 .await
-                .expect("failed to unregister status notifier");
+            {
+                tracing::error!("Failed to unregister status notifier: {err:?}")
+            }
         }
     }
 
