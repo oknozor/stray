@@ -20,7 +20,7 @@ impl NotifierAddress {
             })
         } else if service.starts_with(':') {
             Ok(NotifierAddress {
-                destination: service[0..6].to_string(),
+                destination: service[0..service.len() / 2].to_string(),
                 path: "/StatusNotifierItem".to_string(),
             })
         } else {
